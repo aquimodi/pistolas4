@@ -1,4 +1,23 @@
-const API_BASE_URL = 'http://localhost:3001/api';
+// Dynamic API base URL - use current host if not localhost
+const getApiBaseUrl = () => {
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    const port = window.location.port;
+    
+    // If we're running on localhost, use localhost for API
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return 'http://localhost:3001/api';
+    }
+    
+    // Otherwise, use same hostname with port 3001
+    return `http://${hostname}:3001/api`;
+  }
+  
+  // Fallback for server-side rendering
+  return 'http://localhost:3001/api';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 class ApiService {
   private getHeaders() {

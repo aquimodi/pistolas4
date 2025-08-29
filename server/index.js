@@ -35,9 +35,43 @@ const limiter = rateLimit({
 // Middleware
 app.use(helmet());
 app.use(compression());
+
+// Dynamic CORS configuration
+const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:5173'];
+logger.info('CORS allowed origins:', allowedOrigins);
+
 app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:5173'],
-  credentials: true
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+    
+    // Check if origin is in allowed list or is a dynamic IP
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      return callback(null, true);
+    }
+    
+    // Allow any origin that matches the server's public IP pattern
+    const serverIP = process.env.SERVER_IP || '107.3.52.136';
+    const allowedPatterns = [
+      `http://${serverIP}`,
+      `https://${serverIP}`,
+      'http://localhost:5173',
+      'http://localhost:3000',
+      'http://localhost'
+    ];
+    
+    if (allowedPatterns.some(pattern => origin.startsWith(pattern))) {
+      return callback(null, true);
+    }
+    
+    logger.warn('CORS blocked origin:', origin);
+    const msg = 'The CORS policy for this application does not allow access from the specified Origin.';
+    return callback(new Error(msg), false);
+  },
+  credentials: true,
+  optionsSuccessStatus: 200,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 app.use(session({
   secret: process.env.SESSION_SECRET || 'datacenter_session_secret',

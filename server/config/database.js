@@ -1,8 +1,18 @@
-import sql from 'mssql';
 import dotenv from 'dotenv';
+import sql from 'mssql';
 import logger from '../utils/logger.js';
 
+// Ensure environment variables are loaded
 dotenv.config();
+
+// Log database configuration for debugging
+logger.info('Database configuration:', {
+  server: process.env.DB_SERVER || 'localhost',
+  port: parseInt(process.env.DB_PORT) || 1433,
+  database: process.env.DB_DATABASE || 'datacenter_equipment',
+  user: process.env.DB_USER || 'sa',
+  hasPassword: !!process.env.DB_PASSWORD
+});
 
 const config = {
   server: process.env.DB_SERVER || 'localhost',

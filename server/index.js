@@ -1,3 +1,8 @@
+import dotenv from 'dotenv';
+
+// Load environment variables FIRST, before any other imports
+dotenv.config();
+
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -5,7 +10,6 @@ import session from 'express-session';
 import compression from 'compression';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
-import dotenv from 'dotenv';
 import logger from './utils/logger.js';
 import { connectDB } from './config/database.js';
 import authRoutes from './routes/auth.js';
@@ -17,7 +21,6 @@ import monitoringRoutes from './routes/monitoring.js';
 import { authenticateSession } from './middleware/auth.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;

@@ -42,17 +42,18 @@ export async function connectDB() {
       return pool;
     }
     
-    // In WebContainer environment, SQL Server is not available
-    // Always use mock data for development/demo
-    logger.info('Using mock database (SQL Server not available in this environment)');
-    return { connected: false, mock: true };
-    
     pool = await sql.connect(config);
     logger.info('Connected to SQL Server successfully');
     return pool;
   } catch (error) {
-    logger.warn('Database connection failed, using mock data:', error.message);
-    return { connected: false, mock: true };
+    logger.error('Database connection failed:', error);
+    
+    // For development/demo purposes, use mock data when SQL Server is not available
+    if (process.env.NODE_ENV === 'development') {
+      logger.warn('Using mock database for development');
+      return { connected: false, mock: true };
+    }
+    throw error;
   }
 }
 

@@ -17,6 +17,7 @@ module.exports = {
       env_production: {
         NODE_ENV: 'production',
         PORT: 3001,
+        HOST: '0.0.0.0',
         SERVER_IP: '107.3.52.136',
         ALLOWED_ORIGINS: 'http://localhost,http://localhost:5173,http://107.3.52.136,https://107.3.52.136,https://datacenter.local',
         RATE_LIMIT_WINDOW_MS: 900000,

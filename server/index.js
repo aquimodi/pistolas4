@@ -110,9 +110,10 @@ app.use('*', (req, res) => {
 async function startServer() {
   try {
     await connectDB();
-    app.listen(PORT, () => {
+    app.listen(PORT, '0.0.0.0', () => {
       logger.info(`Server running on port ${PORT}`);
-      console.log(`🚀 Datacenter Equipment Management API running on port ${PORT}`);
+      console.log(`🚀 Datacenter Equipment Management API running on 0.0.0.0:${PORT}`);
+      console.log(`🌐 Server accessible at http://107.3.52.136:${PORT}`);
     });
   } catch (error) {
     logger.error('Failed to start server:', error);

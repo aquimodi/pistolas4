@@ -88,8 +88,10 @@ function getMockData(query) {
   
   if (queryLower.includes('users') && queryLower.includes('select')) {
     return [
-      { id: 1, username: 'admin', email: 'admin@datacenter.com', role: 'admin', is_active: 1, password_hash: '$2b$10$rOTzB8qY9X.K5vN2sJ8HO.JY5vN2sJ8HO.JY5vN2sJ8HO.JY5vN2s', created_at: new Date() },
-      { id: 2, username: 'operator', email: 'operator@datacenter.com', role: 'operator', is_active: 1, password_hash: '$2b$10$rOTzB8qY9X.K5vN2sJ8HO.JY5vN2sJ8HO.JY5vN2sJ8HO.JY5vN2s', created_at: new Date() }
+      { id: 1, username: 'admin', email: 'admin@datacenter.com', role: 'admin', is_active: 1, password: 'admin', created_at: new Date() },
+      { id: 2, username: 'manager', email: 'manager@datacenter.com', role: 'manager', is_active: 1, password: 'manager', created_at: new Date() },
+      { id: 3, username: 'operator', email: 'operator@datacenter.com', role: 'operator', is_active: 1, password: 'operator', created_at: new Date() },
+      { id: 4, username: 'viewer', email: 'viewer@datacenter.com', role: 'viewer', is_active: 1, password: 'viewer', created_at: new Date() }
     ];
   }
   

@@ -15,7 +15,7 @@ router.post('/login', async (req, res) => {
 
     // Get user from database
     const users = await executeQuery(
-      'SELECT id, username, email, password_hash, role, is_active FROM users WHERE username = @param0',
+      'SELECT id, username, email, password, role, is_active FROM users WHERE username = @param0',
       [username]
     );
 
@@ -31,8 +31,8 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Account is inactive' });
     }
 
-    // Simple password comparison (in production, implement proper hashing)
-    const isValidPassword = password === 'admin' || password === 'operator';
+    // Direct password comparison (PLAIN TEXT)
+    const isValidPassword = password === user.password;
 
     if (!isValidPassword) {
       logger.warn(`Login attempt with invalid password for user: ${username} from ${req.ip}`);

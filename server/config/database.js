@@ -30,7 +30,7 @@ const config = {
   pool: {
     max: 10,
     min: 0,
-    idleTimeoutMillis: 30000,
+    idleTimeoutMillis: 30000
   },
 };
 
@@ -38,16 +38,23 @@ let pool = null;
 
 export async function connectDB() {
   try {
+    logger.info('Attempting database connection...', {
+      server: config.server,
+      database: config.database,
+      user: config.user
+    });
+    
     if (pool && pool.connected) {
       return pool;
     }
     
     pool = await sql.connect(config);
     logger.info('Connected to SQL Server successfully');
+    console.log('📊 Database connection established');
     return pool;
   } catch (error) {
     logger.error('Database connection failed:', error);
-    
+    console.warn('⚠️  Database not available, using mock mode');
     // Use mock data when SQL Server is not available (development/demo mode)
     logger.warn('SQL Server not available, using mock database for development');
     return { connected: false, mock: true };

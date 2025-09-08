@@ -21,9 +21,18 @@ import monitoringRoutes from './routes/monitoring.js';
 import { authenticateSession } from './middleware/auth.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
-
 const app = express();
 const PORT = process.env.PORT || 3001;
+const HOST = process.env.HOST || '0.0.0.0';
+
+// Add process error handlers
+process.on('uncaughtException', (err) => {
+  logger.error('Uncaught Exception:', err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
 
 // Rate limiting
 const limiter = rateLimit({
@@ -98,13 +107,15 @@ app.use('*', (req, res) => {
 async function startServer() {
   try {
     await connectDB();
-    app.listen(PORT, () => {
+    app.listen(PORT, HOST, () => {
       logger.info(`Server running on port ${PORT}`);
-      console.log(`🚀 Datacenter Equipment Management API running on localhost:${PORT}`);
-      console.log(`📡 Frontend proxy: http://localhost:5173 -> http://localhost:${PORT}`);
+      console.log(`🚀 Datacenter Equipment Management API running on ${HOST}:${PORT}`);
+      console.log(`📡 Environment: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`📊 Database: ${process.env.DB_SERVER || 'localhost'}`);
     });
   } catch (error) {
     logger.error('Failed to start server:', error);
+    console.error('❌ Server startup failed:', error);
     process.exit(1);
   }
 }

@@ -118,10 +118,10 @@ const ProjectsPage = () => {
               <div className="flex space-x-2">
                 <Link
                   to={`/projects/${project.id}/orders`}
-                  className="flex-1 inline-flex items-center justify-center px-3 py-2 border border-blue-300 shadow-sm text-sm font-medium rounded-md text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors"
+                  className="flex-1 inline-flex items-center justify-center px-3 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-colors"
                 >
                   <FileText className="h-4 w-4 mr-1" />
-                  View Orders
+                  Orders
                 </Link>
                 {(user?.role === 'admin' || user?.role === 'manager') && (
                   <button

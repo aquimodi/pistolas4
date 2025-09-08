@@ -82,14 +82,14 @@ const OrdersPage = () => {
       {/* Breadcrumb */}
       <Breadcrumb items={[
         { label: 'Projects', href: '/projects' },
-        { label: project?.name || 'Project', current: true }
-      ]} />
+        { label: project?.name || 'Project', href: `/projects` },
+        { label: 'Orders', current: true }
 
       {/* Header */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">{project?.name}</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Orders - {project?.name}</h1>
             <p className="mt-1 text-gray-600">{project?.description}</p>
             <div className="mt-2">
               <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(project?.status)}`}>

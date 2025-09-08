@@ -83,9 +83,9 @@ const DashboardPage = () => {
 
   const statCards = [
     { name: 'Active Projects', value: stats.projects, icon: Server, color: 'blue', href: '/projects' },
-    { name: 'Total Orders', value: stats.orders, icon: FileText, color: 'green', href: '/projects' },
+    { name: 'Total Orders', value: stats.orders, icon: FileText, color: 'green', href: '/equipment' },
     { name: 'Equipment Items', value: stats.equipment, icon: Package, color: 'purple', href: '/equipment' },
-    { name: 'Pending Deliveries', value: stats.pending_deliveries, icon: Clock, color: 'orange', href: '/projects' }
+    { name: 'Pending Deliveries', value: stats.pending_deliveries, icon: Clock, color: 'orange', href: '/equipment' }
   ];
 
   const metricCards = [

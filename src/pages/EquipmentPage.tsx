@@ -72,17 +72,25 @@ const EquipmentPage = () => {
       {/* Breadcrumb */}
       <Breadcrumb items={[
         { label: 'Projects', href: '/projects' },
-        { label: 'Project Name', href: '/projects' },
-        { label: 'Order Number', href: '/projects/1/orders' },
-        { label: 'Delivery Note', current: true }
+        { label: 'Project', href: '/projects' },
+        { label: 'Orders', href: '/projects/1/orders' },
+        { label: 'Delivery Notes', href: '/orders/1/delivery-notes' },
+        { label: deliveryNoteId && deliveryNoteId !== 'all' ? `DN-${deliveryNoteId}` : 'All Equipment', current: true }
       ]} />
 
       {/* Header */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Equipment Inventory</h1>
-            <p className="mt-1 text-gray-600">Delivery Note: DN-2024-{deliveryNoteId}</p>
+            <h1 className="text-2xl font-bold text-gray-900">
+              {deliveryNoteId && deliveryNoteId !== 'all' ? `Equipment - DN-${deliveryNoteId}` : 'All Equipment Inventory'}
+            </h1>
+            <p className="mt-1 text-gray-600">
+              {deliveryNoteId && deliveryNoteId !== 'all' 
+                ? `Delivery Note: DN-2024-${deliveryNoteId}` 
+                : 'Complete equipment inventory across all delivery notes'
+              }
+            </p>
           </div>
         </div>
       </div>

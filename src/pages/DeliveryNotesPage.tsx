@@ -63,7 +63,8 @@ const DeliveryNotesPage = () => {
       {/* Breadcrumb */}
       <Breadcrumb items={[
         { label: 'Projects', href: '/projects' },
-        { label: order?.project_name || 'Project', href: '/projects' },
+        { label: 'Project', href: '/projects' },
+        { label: 'Orders', href: '/projects/1/orders' },
         { label: order?.order_number || 'Order', current: true }
       ]} />
 
@@ -71,7 +72,7 @@ const DeliveryNotesPage = () => {
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Delivery Notes</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Delivery Notes - {order?.order_number}</h1>
             <p className="mt-1 text-gray-600">Order: {order?.order_number}</p>
           </div>
         </div>

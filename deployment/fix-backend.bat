@@ -16,8 +16,6 @@ if not exist "D:\nginx\pistolas" (
     echo    Creando directorio...
     mkdir "D:\nginx\pistolas" 2>nul
 )
-echo    ✓ Directorio verificado
-echo.
 
 echo 3. Estableciendo variables de entorno...
 set NODE_ENV=production
@@ -28,46 +26,60 @@ set DB_DATABASE=datacenter_equipment
 echo    ✓ Variables configuradas
 echo.
 
-echo 4. Intentando iniciar con PM2...
-cd /d "D:\nginx\pistolas"
+echo 4. Verificando archivo del servidor...
+if exist "D:\nginx\pistolas\server\index.js" (
+    echo    ✓ Usando archivo en D:\nginx\pistolas
+    cd /d "D:\nginx\pistolas"
+) else (
+    echo    ! Archivo no encontrado en pistolas, usando directorio actual
+    echo    Directorio actual: %CD%
+)
+echo.
+
+echo 5. Intentando iniciar con PM2...
 pm2 start ecosystem.config.cjs --env production 2>nul
 if %ERRORLEVEL% EQU 0 (
     echo    ✓ PM2 iniciado correctamente
+    timeout /t 3 /nobreak > nul
     goto :check_status
 ) else (
     echo    ! PM2 falló, intentando inicio directo...
 )
 
-echo 5. Iniciando directamente con Node.js...
-cd /d "%~dp0.."
+echo 6. Iniciando directamente con Node.js...
 echo Iniciando servidor en modo directo...
 start /b node server/index.js
+timeout /t 3 /nobreak > nul
 echo    ✓ Node.js iniciado directamente
 echo.
 
 :check_status
-echo 6. Esperando que el servidor inicie...
-timeout /t 5 /nobreak > nul
-
 echo 7. Verificando estado del servidor...
+timeout /t 2 /nobreak > nul
 curl -s http://localhost:3001/health 2>nul
 if %ERRORLEVEL% EQU 0 (
     echo    ✓ ¡Servidor respondiendo correctamente!
+    echo    ✓ Problema solucionado - Backend funcionando
 ) else (
-    echo    ✗ Servidor NO responde - revisar logs
-    echo    Ejecutar: pm2 logs
+    echo    ✗ Servidor NO responde
+    echo    Verificando proceso...
+    netstat -an | findstr :3001
+    if %ERRORLEVEL% EQU 0 (
+        echo    ✓ Puerto 3001 está en uso, pero no responde
+        echo    Puede necesitar unos segundos más para iniciar
+    ) else (
+        echo    ✗ Puerto 3001 NO está en uso - PROCESO FALLÓ
+        echo    Revisar logs con: pm2 logs
+    )
 )
 echo.
 
-echo 8. Verificando proceso en puerto 3001...
-netstat -an | findstr :3001
+echo =================================
+echo VERIFICACIÓN FINAL
+echo =================================
+echo Probando conexión:
+curl -v http://localhost:3001/health
 echo.
-
-echo =================================
-echo REPARACIÓN COMPLETADA
-echo =================================
-echo Verificar con: curl http://localhost:3001/health
-echo Ver logs con: pm2 logs
-echo Reiniciar con: pm2 restart all
+echo Si aún falla, ejecutar: deployment\start-backend-only.bat
 echo =================================
 pause

@@ -1,6 +1,6 @@
 @echo off
 echo =================================
-echo INICIO SOLO DEL BACKEND API
+echo INICIO MANUAL DEL BACKEND API
 echo =================================
 echo.
 
@@ -21,12 +21,25 @@ echo - HOST: %HOST%
 echo - DB_SERVER: %DB_SERVER%
 echo.
 
-echo Cambiando al directorio del proyecto...
-cd /d "%~dp0.."
-echo Directorio actual: %CD%
+echo Verificando archivo del servidor...
+if exist "server\index.js" (
+    echo ✓ Archivo encontrado: server\index.js
+    echo ✓ Directorio actual: %CD%
+) else if exist "D:\nginx\pistolas\server\index.js" (
+    echo ✓ Archivo encontrado: D:\nginx\pistolas\server\index.js
+    cd /d "D:\nginx\pistolas"
+) else (
+    echo ✗ ARCHIVO NO ENCONTRADO: server\index.js
+    echo Directorio actual: %CD%
+    dir server\ 2>nul
+    pause
+    exit /b 1
+)
 echo.
 
 echo Iniciando servidor backend...
+echo ========================================
+echo Presiona Ctrl+C para detener el servidor
 echo ========================================
 node server/index.js
 echo ========================================

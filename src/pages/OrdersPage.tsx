@@ -84,6 +84,7 @@ const OrdersPage = () => {
         { label: 'Projects', href: '/projects' },
         { label: project?.name || 'Project', href: `/projects` },
         { label: 'Orders', current: true }
+      ]} />
 
       {/* Header */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">

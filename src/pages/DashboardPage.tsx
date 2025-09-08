@@ -111,15 +111,25 @@ const DashboardPage = () => {
             <Link
               key={stat.name}
               to={stat.href}
-              className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow group"
+              className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-lg hover:border-blue-200 transition-all duration-200 group cursor-pointer"
             >
               <div className="flex items-center">
-                <div className={`p-2 rounded-md bg-${stat.color}-100 group-hover:bg-${stat.color}-200 transition-colors`}>
-                  <Icon className={`h-6 w-6 text-${stat.color}-600`} />
+                <div className={`p-3 rounded-lg ${
+                  stat.color === 'blue' ? 'bg-blue-100 group-hover:bg-blue-200' :
+                  stat.color === 'green' ? 'bg-green-100 group-hover:bg-green-200' :
+                  stat.color === 'purple' ? 'bg-purple-100 group-hover:bg-purple-200' :
+                  'bg-orange-100 group-hover:bg-orange-200'
+                } transition-colors`}>
+                  <Icon className={`h-6 w-6 ${
+                    stat.color === 'blue' ? 'text-blue-600' :
+                    stat.color === 'green' ? 'text-green-600' :
+                    stat.color === 'purple' ? 'text-purple-600' :
+                    'text-orange-600'
+                  }`} />
                 </div>
                 <div className="ml-4">
-                  <p className="text-2xl font-semibold text-gray-900">{stat.value}</p>
-                  <p className="text-sm text-gray-600">{stat.name}</p>
+                  <p className="text-2xl font-bold text-gray-900 group-hover:text-gray-800 transition-colors">{stat.value}</p>
+                  <p className="text-sm font-medium text-gray-600 group-hover:text-gray-700 transition-colors">{stat.name}</p>
                 </div>
               </div>
             </Link>

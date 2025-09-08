@@ -118,8 +118,9 @@ const ProjectsPage = () => {
               <div className="flex space-x-2">
                 <Link
                   to={`/projects/${project.id}/orders`}
-                  className="flex-1 inline-flex items-center justify-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+                  className="flex-1 inline-flex items-center justify-center px-3 py-2 border border-blue-300 shadow-sm text-sm font-medium rounded-md text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors"
                 >
+                  <FileText className="h-4 w-4 mr-1" />
                   View Orders
                 </Link>
                 {(user?.role === 'admin' || user?.role === 'manager') && (

@@ -32,6 +32,7 @@ function App() {
                 <Route path="projects/:projectId/orders" element={<OrdersPage />} />
                 <Route path="orders/:orderId/delivery-notes" element={<DeliveryNotesPage />} />
                 <Route path="delivery-notes/:deliveryNoteId/equipment" element={<EquipmentPage />} />
+                <Route path="equipment" element={<EquipmentPage />} />
                 <Route path="monitoring" element={<MonitoringPage />} />
               </Route>
             </Routes>

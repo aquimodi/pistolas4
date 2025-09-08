@@ -16,8 +16,12 @@ const EquipmentPage = () => {
 
   const fetchEquipment = async () => {
     try {
-      if (deliveryNoteId) {
+      if (deliveryNoteId && deliveryNoteId !== 'all') {
         const data = await equipmentAPI.getByDeliveryNote(deliveryNoteId);
+        setEquipment(data);
+      } else {
+        // Show all equipment if no specific delivery note
+        const data = await equipmentAPI.getAll();
         setEquipment(data);
       }
     } catch (error) {

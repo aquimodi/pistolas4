@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Server, Calendar, Users } from 'lucide-react';
+import { Plus, Server, Calendar, Users, FileText } from 'lucide-react';
 import { projectsAPI } from '../services/api';
 import { useNotification } from '../contexts/NotificationContext';
 import { useAuth } from '../contexts/AuthContext';

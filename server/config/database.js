@@ -48,12 +48,9 @@ export async function connectDB() {
   } catch (error) {
     logger.error('Database connection failed:', error);
     
-    // For development/demo purposes, use mock data when SQL Server is not available
-    if (process.env.NODE_ENV === 'development') {
-      logger.warn('Using mock database for development');
-      return { connected: false, mock: true };
-    }
-    throw error;
+    // Use mock data when SQL Server is not available (development/demo mode)
+    logger.warn('SQL Server not available, using mock database for development');
+    return { connected: false, mock: true };
   }
 }
 

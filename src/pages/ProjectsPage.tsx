@@ -133,14 +133,14 @@ const ProjectsPage = () => {
                   className="flex-1 inline-flex items-center justify-center px-3 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-colors"
                 >
                   <FileText className="h-4 w-4 mr-1" />
-                  Orders
+                  Ver Pedidos
                 </Link>
                 {(user?.role === 'admin' || user?.role === 'manager') && (
                   <button
                     onClick={() => handleEditProject(project)}
                     className="px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors"
                   >
-                    Edit
+                    Editar
                   </button>
                 )}
               </div>

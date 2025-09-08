@@ -101,7 +101,7 @@ const OrdersPage = () => {
       <Breadcrumb items={[
         ...(projectId ? [
           { label: 'Projects', href: '/projects' },
-          { label: project?.name || 'Project', href: `/projects` },
+          { label: project?.name || 'Project', href: '/projects' },
           { label: 'Orders', current: true }
         ] : [
           { label: 'Orders', current: true }
@@ -182,14 +182,14 @@ const OrdersPage = () => {
                       className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors"
                     >
                       <Package className="h-3 w-3 mr-1" />
-                      Delivery Notes
+                      Ver Albaranes
                     </Link>
                     {projectId && (
                       <button
                         onClick={() => handleEditOrder(order)}
                         className="text-blue-600 hover:text-blue-700 text-sm font-medium transition-colors"
                       >
-                        Edit
+                        Editar
                       </button>
                     )}
                   </div>

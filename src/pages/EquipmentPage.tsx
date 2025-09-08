@@ -71,11 +71,16 @@ const EquipmentPage = () => {
     <div className="p-6 space-y-6">
       {/* Breadcrumb */}
       <Breadcrumb items={[
-        { label: 'Projects', href: '/projects' },
-        { label: 'Project', href: '/projects' },
-        { label: 'Orders', href: '/projects/1/orders' },
-        { label: 'Delivery Notes', href: '/orders/1/delivery-notes' },
-        { label: deliveryNoteId && deliveryNoteId !== 'all' ? `DN-${deliveryNoteId}` : 'All Equipment', current: true }
+        ...(deliveryNoteId && deliveryNoteId !== 'all' ? [
+          { label: 'Projects', href: '/projects' },
+          { label: 'DC Expansion Phase 1', href: '/projects' },
+          { label: 'Orders', href: '/projects/1/orders' },
+          { label: `ORD-2024-${deliveryNoteId.padStart(3, '0')}`, href: '/orders/1/delivery-notes' },
+          { label: 'Delivery Notes', href: '/orders/1/delivery-notes' },
+          { label: `DN-2024-${deliveryNoteId.padStart(3, '0')}`, current: true }
+        ] : [
+          { label: 'All Equipment', current: true }
+        ])
       ]} />
 
       {/* Header */}

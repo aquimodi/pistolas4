@@ -9,12 +9,13 @@ const router = express.Router();
 router.get('/order/:orderId', async (req, res) => {
   try {
     const { orderId } = req.params;
+    logger.debug(`Fetching delivery notes for order: ${orderId}`);
     const deliveryNotes = await executeQuery(
       'SELECT dn.*, o.order_number FROM delivery_notes dn LEFT JOIN orders o ON dn.order_id = o.id WHERE dn.order_id = @param0 ORDER BY dn.created_at DESC',
       [orderId]
     );
     
-    logger.debug(`Retrieved ${deliveryNotes.length} delivery notes for order ${orderId}`);
+    logger.info(`Retrieved ${deliveryNotes.length} delivery notes for order ${orderId}`);
     res.json(deliveryNotes);
   } catch (error) {
     logger.error('Error fetching delivery notes:', error);

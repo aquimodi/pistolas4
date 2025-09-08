@@ -23,6 +23,7 @@ const DeliveryNotesPage = () => {
         // Mock order data for breadcrumb
         setOrder({ 
           id: orderId, 
+          project_id: '1',
           order_number: `ORD-2024-${orderId.padStart(3, '0')}`,
           project_name: 'DC Expansion Phase 1'
         });
@@ -74,8 +75,11 @@ const DeliveryNotesPage = () => {
       {/* Breadcrumb */}
       <Breadcrumb items={[
         ...(orderId ? [
-          { label: 'Orders', href: '/orders' },
-          { label: order?.order_number || 'Order', current: true }
+          { label: 'Projects', href: '/projects' },
+          { label: order?.project_name || 'Project', href: '/projects' },
+          { label: 'Orders', href: `/projects/${order?.project_id}/orders` },
+          { label: order?.order_number || 'Order', href: '/orders' },
+          { label: 'Delivery Notes', current: true }
         ] : [
           { label: 'Delivery Notes', current: true }
         ])
@@ -144,7 +148,7 @@ const DeliveryNotesPage = () => {
                       className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors"
                     >
                       <Package className="h-3 w-3 mr-1" />
-                      Equipment
+                      Ver Equipos
                     </Link>
                   </div>
                 </div>

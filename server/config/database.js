@@ -104,17 +104,17 @@ function getMockData(query) {
   
   if (queryLower.includes('orders')) {
     return [
-      { id: 1, project_id: 1, order_number: 'ORD-2024-001', vendor: 'Dell Technologies', description: '10x PowerEdge R750 servers', status: 'received', created_at: new Date(), project_name: 'DC Expansion Phase 1' },
-      { id: 2, project_id: 1, order_number: 'ORD-2024-002', vendor: 'HPE', description: '5x ProLiant DL380 servers', status: 'pending', created_at: new Date(), project_name: 'DC Expansion Phase 1' },
-      { id: 3, project_id: 2, order_number: 'ORD-2024-003', vendor: 'Cisco Systems', description: 'Network switches and routers', status: 'partial', created_at: new Date(), project_name: 'Server Refresh 2024' }
+      { id: 1, project_id: 1, order_number: 'ORD-2024-001', vendor: 'Dell Technologies', description: '10x PowerEdge R750 servers', status: 'received', created_at: new Date(), project_name: 'DC Expansion Phase 1', expected_delivery_date: new Date() },
+      { id: 2, project_id: 1, order_number: 'ORD-2024-002', vendor: 'HPE', description: '5x ProLiant DL380 servers', status: 'pending', created_at: new Date(), project_name: 'DC Expansion Phase 1', expected_delivery_date: new Date() },
+      { id: 3, project_id: 2, order_number: 'ORD-2024-003', vendor: 'Cisco Systems', description: 'Network switches and routers', status: 'partial', created_at: new Date(), project_name: 'Server Refresh 2024', expected_delivery_date: new Date() }
     ];
   }
   
   if (queryLower.includes('delivery_notes')) {
     return [
-      { id: 1, order_id: 1, delivery_note_number: 'DN-2024-001', delivery_date: new Date(), status: 'completed', carrier: 'FedEx', created_at: new Date(), order_number: 'ORD-2024-001', project_name: 'DC Expansion Phase 1' },
-      { id: 2, order_id: 2, delivery_note_number: 'DN-2024-002', delivery_date: new Date(), status: 'processing', carrier: 'UPS', created_at: new Date(), order_number: 'ORD-2024-002', project_name: 'DC Expansion Phase 1' },
-      { id: 3, order_id: 3, delivery_note_number: 'DN-2024-003', delivery_date: new Date(), status: 'received', carrier: 'DHL', created_at: new Date(), order_number: 'ORD-2024-003', project_name: 'Server Refresh 2024' }
+      { id: 1, order_id: 1, delivery_note_number: 'DN-2024-001', delivery_date: new Date(), status: 'completed', carrier: 'FedEx', tracking_number: 'FX123456789', created_at: new Date(), order_number: 'ORD-2024-001', project_name: 'DC Expansion Phase 1' },
+      { id: 2, order_id: 2, delivery_note_number: 'DN-2024-002', delivery_date: new Date(), status: 'processing', carrier: 'UPS', tracking_number: 'UP555666777', created_at: new Date(), order_number: 'ORD-2024-002', project_name: 'DC Expansion Phase 1' },
+      { id: 3, order_id: 3, delivery_note_number: 'DN-2024-003', delivery_date: new Date(), status: 'received', carrier: 'DHL', tracking_number: 'DH999888777', created_at: new Date(), order_number: 'ORD-2024-003', project_name: 'Server Refresh 2024' }
     ];
   }
   

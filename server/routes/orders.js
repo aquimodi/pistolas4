@@ -9,12 +9,13 @@ const router = express.Router();
 router.get('/project/:projectId', async (req, res) => {
   try {
     const { projectId } = req.params;
+    logger.debug(`Fetching orders for project: ${projectId}`);
     const orders = await executeQuery(
       'SELECT o.*, p.name as project_name FROM orders o LEFT JOIN projects p ON o.project_id = p.id WHERE o.project_id = @param0 ORDER BY o.created_at DESC',
       [projectId]
     );
     
-    logger.debug(`Retrieved ${orders.length} orders for project ${projectId}`);
+    logger.info(`Retrieved ${orders.length} orders for project ${projectId}`);
     res.json(orders);
   } catch (error) {
     logger.error('Error fetching orders:', error);

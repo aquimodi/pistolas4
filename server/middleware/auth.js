@@ -30,7 +30,7 @@ export const authorizeRole = (roles) => {
     if (!roles.includes(req.user.role)) {
       logger.warn(`Unauthorized role access: ${req.user.username} (${req.user.role}) attempted to access ${req.path}`);
       return res.status(403).json({ error: 'Insufficient permissions' });
-    }
+    }  
     next();
   };
 };

@@ -21,18 +21,24 @@ const OrdersPage = () => {
   const fetchData = async () => {
     try {
       if (projectId) {
+        // Vista específica de proyecto
         const [projectData, ordersData] = await Promise.all([
           projectsAPI.getById(projectId),
           ordersAPI.getByProject(projectId)
         ]);
         setProject(projectData);
         setOrders(ordersData);
+      } else {
+        // Vista general de todos los orders
+        const ordersData = await ordersAPI.getAll();
+        setOrders(ordersData);
+        setProject(null);
       }
     } catch (error) {
       addNotification({
         type: 'error',
         title: 'Error',
-        message: 'Failed to fetch data'
+        message: 'Failed to fetch orders'
       });
     } finally {
       setIsLoading(false);
@@ -81,30 +87,42 @@ const OrdersPage = () => {
     <div className="p-6 space-y-6">
       {/* Breadcrumb */}
       <Breadcrumb items={[
-        { label: 'Projects', href: '/projects' },
-        { label: project?.name || 'Project', href: `/projects` },
-        { label: 'Orders', current: true }
+        ...(projectId ? [
+          { label: 'Projects', href: '/projects' },
+          { label: project?.name || 'Project', href: `/projects` },
+          { label: 'Orders', current: true }
+        ] : [
+          { label: 'Orders', current: true }
+        ])
       ]} />
 
       {/* Header */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Orders - {project?.name}</h1>
-            <p className="mt-1 text-gray-600">{project?.description}</p>
-            <div className="mt-2">
-              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(project?.status)}`}>
-                {project?.status?.replace('_', ' ') || 'active'}
-              </span>
-            </div>
+            <h1 className="text-2xl font-bold text-gray-900">
+              {projectId ? `Orders - ${project?.name}` : 'All Orders'}
+            </h1>
+            <p className="mt-1 text-gray-600">
+              {projectId ? project?.description : 'Complete overview of all purchase orders'}
+            </p>
+            {project && (
+              <div className="mt-2">
+                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(project?.status)}`}>
+                  {project?.status?.replace('_', ' ') || 'active'}
+                </span>
+              </div>
+            )}
           </div>
-          <button
-            onClick={handleCreateOrder}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 transition-colors"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            New Order
-          </button>
+          {projectId && (
+            <button
+              onClick={handleCreateOrder}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 transition-colors"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              New Order
+            </button>
+          )}
         </div>
       </div>
 
@@ -125,6 +143,9 @@ const OrdersPage = () => {
                       <div>
                         <h3 className="text-sm font-medium text-gray-900">{order.order_number}</h3>
                         <p className="text-sm text-gray-600">Vendor: {order.vendor}</p>
+                        {!projectId && order.project_name && (
+                          <p className="text-xs text-gray-500">Project: {order.project_name}</p>
+                        )}
                       </div>
                     </div>
                     <div className="mt-2 flex items-center space-x-4 text-xs text-gray-500">
@@ -151,12 +172,14 @@ const OrdersPage = () => {
                       <Package className="h-3 w-3 mr-1" />
                       Delivery Notes
                     </Link>
-                    <button
-                      onClick={() => handleEditOrder(order)}
-                      className="text-blue-600 hover:text-blue-700 text-sm font-medium transition-colors"
-                    >
-                      Edit
-                    </button>
+                    {projectId && (
+                      <button
+                        onClick={() => handleEditOrder(order)}
+                        className="text-blue-600 hover:text-blue-700 text-sm font-medium transition-colors"
+                      >
+                        Edit
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -172,7 +195,7 @@ const OrdersPage = () => {
       </div>
 
       {/* Order Modal */}
-      {isModalOpen && (
+      {isModalOpen && projectId && (
         <OrderModal
           order={editingOrder}
           projectId={projectId!}

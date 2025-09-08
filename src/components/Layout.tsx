@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { 
   Server, 
-  Package, 
   FileText, 
+  Package,
   Monitor, 
   BarChart3, 
   LogOut, 
@@ -23,6 +23,8 @@ const Layout = () => {
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: Home },
     { name: 'Projects', href: '/projects', icon: Server },
+    { name: 'Orders', href: '/orders', icon: FileText },
+    { name: 'Delivery Notes', href: '/delivery-notes', icon: Package },
     { name: 'Equipment', href: '/equipment', icon: Package },
     { name: 'Monitoring', href: '/monitoring', icon: BarChart3 },
   ];

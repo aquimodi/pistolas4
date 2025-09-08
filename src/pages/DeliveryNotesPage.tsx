@@ -16,6 +16,7 @@ const DeliveryNotesPage = () => {
   const fetchData = async () => {
     try {
       if (orderId) {
+        // Vista específica de un pedido
         const deliveryNotesData = await deliveryNotesAPI.getByOrder(orderId);
         setDeliveryNotes(deliveryNotesData);
         
@@ -25,6 +26,16 @@ const DeliveryNotesPage = () => {
           order_number: `ORD-2024-${orderId.padStart(3, '0')}`,
           project_name: 'DC Expansion Phase 1'
         });
+      } else {
+        // Vista general de todos los delivery notes
+        // Como no tenemos un endpoint para todos los delivery notes, usamos mock data
+        const mockDeliveryNotes = [
+          { id: 1, delivery_note_number: 'DN-2024-001', delivery_date: new Date(), status: 'received', carrier: 'FedEx', order_number: 'ORD-2024-001', project_name: 'DC Expansion Phase 1' },
+          { id: 2, delivery_note_number: 'DN-2024-002', delivery_date: new Date(), status: 'processing', carrier: 'UPS', order_number: 'ORD-2024-002', project_name: 'Server Refresh 2024' },
+          { id: 3, delivery_note_number: 'DN-2024-003', delivery_date: new Date(), status: 'completed', carrier: 'DHL', order_number: 'ORD-2024-003', project_name: 'Network Upgrade Q1' }
+        ];
+        setDeliveryNotes(mockDeliveryNotes);
+        setOrder(null);
       }
     } catch (error) {
       addNotification({
@@ -62,18 +73,24 @@ const DeliveryNotesPage = () => {
     <div className="p-6 space-y-6">
       {/* Breadcrumb */}
       <Breadcrumb items={[
-        { label: 'Projects', href: '/projects' },
-        { label: 'Project', href: '/projects' },
-        { label: 'Orders', href: '/projects/1/orders' },
-        { label: order?.order_number || 'Order', current: true }
+        ...(orderId ? [
+          { label: 'Orders', href: '/orders' },
+          { label: order?.order_number || 'Order', current: true }
+        ] : [
+          { label: 'Delivery Notes', current: true }
+        ])
       ]} />
 
       {/* Header */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Delivery Notes - {order?.order_number}</h1>
-            <p className="mt-1 text-gray-600">Order: {order?.order_number}</p>
+            <h1 className="text-2xl font-bold text-gray-900">
+              {orderId ? `Delivery Notes - ${order?.order_number}` : 'All Delivery Notes'}
+            </h1>
+            <p className="mt-1 text-gray-600">
+              {orderId ? `Order: ${order?.order_number}` : 'Complete overview of all delivery notes'}
+            </p>
           </div>
         </div>
       </div>
@@ -96,6 +113,12 @@ const DeliveryNotesPage = () => {
                         <h3 className="text-sm font-medium text-gray-900">{note.delivery_note_number}</h3>
                         {note.carrier && (
                           <p className="text-sm text-gray-600">Carrier: {note.carrier}</p>
+                        )}
+                        {!orderId && note.order_number && (
+                          <p className="text-xs text-gray-500">Order: {note.order_number}</p>
+                        )}
+                        {!orderId && note.project_name && (
+                          <p className="text-xs text-gray-500">Project: {note.project_name}</p>
                         )}
                       </div>
                     </div>

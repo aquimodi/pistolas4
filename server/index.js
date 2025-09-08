@@ -36,49 +36,26 @@ const limiter = rateLimit({
 app.use(helmet());
 app.use(compression());
 
-// Dynamic CORS configuration
-const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:5173'];
-logger.info('CORS allowed origins:', allowedOrigins);
-
+// CORS configuration for development and production
 app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (mobile apps, curl, etc.)
-    if (!origin) return callback(null, true);
-    
-    // Check if origin is in allowed list or is a dynamic IP
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      return callback(null, true);
-    }
-    
-    // Allow any origin that matches the server's public IP pattern
-    const serverIP = process.env.SERVER_IP || '107.3.52.136';
-    const allowedPatterns = [
-      `http://${serverIP}`,
-      `https://${serverIP}`,
-      'http://localhost:5173',
-      'http://localhost:3000',
-      'http://localhost'
-    ];
-    
-    if (allowedPatterns.some(pattern => origin.startsWith(pattern))) {
-      return callback(null, true);
-    }
-    
-    logger.warn('CORS blocked origin:', origin);
-    const msg = 'The CORS policy for this application does not allow access from the specified Origin.';
-    return callback(new Error(msg), false);
-  },
+  origin: process.env.ALLOWED_ORIGINS?.split(',') || [
+    'http://localhost:5173', // Vite dev server
+    'http://localhost:3000',
+    'http://localhost'
+  ],
   credentials: true,
   optionsSuccessStatus: 200,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
+
 app.use(session({
   secret: process.env.SESSION_SECRET || 'datacenter_session_secret',
   resave: false,
   saveUninitialized: false,
   cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 } // 24 hours
 }));
+
 app.use(limiter);
 app.use(morgan('combined', { stream: { write: (message) => logger.info(message.trim()) } }));
 app.use(express.json({ limit: '10mb' }));
@@ -110,10 +87,10 @@ app.use('*', (req, res) => {
 async function startServer() {
   try {
     await connectDB();
-    app.listen(PORT, '0.0.0.0', () => {
+    app.listen(PORT, () => {
       logger.info(`Server running on port ${PORT}`);
-      console.log(`🚀 Datacenter Equipment Management API running on 0.0.0.0:${PORT}`);
-      console.log(`🌐 Server accessible at http://107.3.52.136:${PORT}`);
+      console.log(`🚀 Datacenter Equipment Management API running on localhost:${PORT}`);
+      console.log(`📡 Frontend proxy: http://localhost:5173 -> http://localhost:${PORT}`);
     });
   } catch (error) {
     logger.error('Failed to start server:', error);

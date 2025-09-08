@@ -20,11 +20,13 @@ export default defineConfig({
   },
   server: {
     port: 5173,
-    host: true, // Allow external connections
+    host: true,
     proxy: {
       '/api': {
-        target: process.env.VITE_API_URL || 'http://localhost:3001',
-        changeOrigin: true
+        target: 'http://localhost:3001', // Puerto donde corre el backend
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/api/, '/api')
       }
     }
   }

@@ -83,6 +83,8 @@ export async function executeQuery(query, params = []) {
 function getMockData(query) {
   const queryLower = query.toLowerCase();
   
+  console.log('Using mock data for query:', query.substring(0, 100));
+  
   if (queryLower.includes('users') && queryLower.includes('select')) {
     return [
       { id: 1, username: 'admin', email: 'admin@datacenter.com', role: 'admin', is_active: 1, password: 'admin', created_at: new Date() },
@@ -94,29 +96,33 @@ function getMockData(query) {
   
   if (queryLower.includes('projects')) {
     return [
-      { id: 1, name: 'DC Expansion Phase 1', description: 'Datacenter expansion project', status: 'active', created_at: new Date() },
-      { id: 2, name: 'Server Refresh 2024', description: 'Annual server hardware refresh', status: 'active', created_at: new Date() }
+      { id: 1, name: 'DC Expansion Phase 1', description: 'Primary datacenter expansion with new server racks', status: 'active', created_at: new Date(), created_by: 1 },
+      { id: 2, name: 'Server Refresh 2024', description: 'Annual server hardware refresh and modernization', status: 'active', created_at: new Date(), created_by: 1 },
+      { id: 3, name: 'Network Upgrade Q1', description: 'Core network infrastructure upgrade', status: 'on_hold', created_at: new Date(), created_by: 2 }
     ];
   }
   
   if (queryLower.includes('orders')) {
     return [
-      { id: 1, project_id: 1, order_number: 'ORD-2024-001', vendor: 'Dell Technologies', status: 'pending', created_at: new Date() },
-      { id: 2, project_id: 1, order_number: 'ORD-2024-002', vendor: 'HPE', status: 'received', created_at: new Date() }
+      { id: 1, project_id: 1, order_number: 'ORD-2024-001', vendor: 'Dell Technologies', description: '10x PowerEdge R750 servers', status: 'received', created_at: new Date(), project_name: 'DC Expansion Phase 1' },
+      { id: 2, project_id: 1, order_number: 'ORD-2024-002', vendor: 'HPE', description: '5x ProLiant DL380 servers', status: 'pending', created_at: new Date(), project_name: 'DC Expansion Phase 1' },
+      { id: 3, project_id: 2, order_number: 'ORD-2024-003', vendor: 'Cisco Systems', description: 'Network switches and routers', status: 'partial', created_at: new Date(), project_name: 'Server Refresh 2024' }
     ];
   }
   
   if (queryLower.includes('delivery_notes')) {
     return [
-      { id: 1, order_id: 1, delivery_note_number: 'DN-2024-001', delivery_date: new Date(), status: 'received', created_at: new Date() },
-      { id: 2, order_id: 2, delivery_note_number: 'DN-2024-002', delivery_date: new Date(), status: 'processing', created_at: new Date() }
+      { id: 1, order_id: 1, delivery_note_number: 'DN-2024-001', delivery_date: new Date(), status: 'completed', carrier: 'FedEx', created_at: new Date(), order_number: 'ORD-2024-001', project_name: 'DC Expansion Phase 1' },
+      { id: 2, order_id: 2, delivery_note_number: 'DN-2024-002', delivery_date: new Date(), status: 'processing', carrier: 'UPS', created_at: new Date(), order_number: 'ORD-2024-002', project_name: 'DC Expansion Phase 1' },
+      { id: 3, order_id: 3, delivery_note_number: 'DN-2024-003', delivery_date: new Date(), status: 'received', carrier: 'DHL', created_at: new Date(), order_number: 'ORD-2024-003', project_name: 'Server Refresh 2024' }
     ];
   }
   
   if (queryLower.includes('equipment')) {
     return [
-      { id: 1, delivery_note_id: 1, serial_number: 'DL001234', model: 'PowerEdge R750', manufacturer: 'Dell', status: 'received', location: 'Rack A1', created_at: new Date() },
-      { id: 2, delivery_note_id: 1, serial_number: 'DL005678', model: 'PowerEdge R740', manufacturer: 'Dell', status: 'installed', location: 'Rack A2', created_at: new Date() }
+      { id: 1, delivery_note_id: 1, serial_number: 'DL001234', asset_tag: 'DC-SRV-001', model: 'PowerEdge R750', manufacturer: 'Dell', category: 'Server', condition_status: 'new', status: 'configured', location: 'Rack A1-U01', specifications: 'Intel Xeon Gold 6338, 64GB RAM, 2x 960GB SSD', created_at: new Date() },
+      { id: 2, delivery_note_id: 1, serial_number: 'DL001235', asset_tag: 'DC-SRV-002', model: 'PowerEdge R750', manufacturer: 'Dell', category: 'Server', condition_status: 'new', status: 'installed', location: 'Rack A1-U03', specifications: 'Intel Xeon Gold 6338, 64GB RAM, 2x 960GB SSD', created_at: new Date() },
+      { id: 3, delivery_note_id: 2, serial_number: 'CS445566', asset_tag: 'DC-NET-001', model: 'Catalyst 9300-48P', manufacturer: 'Cisco', category: 'Network', condition_status: 'new', status: 'received', location: 'Rack C1-U42', specifications: '48-Port Gigabit Switch with PoE+', created_at: new Date() }
     ];
   }
   

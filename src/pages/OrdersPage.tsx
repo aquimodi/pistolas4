@@ -19,8 +19,6 @@ const OrdersPage = () => {
   const [editingOrder, setEditingOrder] = useState(null);
 
   const fetchData = async () => {
-    if (isLoading) return; // Evitar peticiones múltiples
-    
     try {
       setIsLoading(true);
       if (projectId) {
@@ -38,6 +36,7 @@ const OrdersPage = () => {
         setProject(null);
       }
     } catch (error) {
+      console.error('Error fetching orders:', error);
       addNotification({
         type: 'error',
         title: 'Error',
@@ -49,11 +48,17 @@ const OrdersPage = () => {
   };
 
   useEffect(() => {
-    let mounted = true;
-    if (mounted) {
-      fetchData();
+    let isMounted = true;
+    
+    const loadData = async () => {
+      await fetchData();
+    };
+    
+    if (isMounted) {
+      loadData();
     }
-    return () => { mounted = false; };
+    
+    return () => { isMounted = false; };
   }, [projectId]);
 
   const handleCreateOrder = () => {

@@ -27,6 +27,10 @@ class ApiService {
         throw new Error('Too many requests. Please wait and try again.');
       }
       
+      if (response.status === 500) {
+        throw new Error('Server error. Please try again later.');
+      }
+      
       let error;
       try {
         error = await response.json();
@@ -39,6 +43,7 @@ class ApiService {
   }
 
   async get(endpoint: string) {
+    console.log(`API GET: ${API_BASE_URL}${endpoint}`);
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       headers: this.getHeaders(),
       credentials: 'include'

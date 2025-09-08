@@ -17,13 +17,12 @@ const ProjectsPage = () => {
   const [editingProject, setEditingProject] = useState(null);
 
   const fetchProjects = async () => {
-    if (isLoading) return; // Evitar peticiones múltiples
-    
     try {
       setIsLoading(true);
       const data = await projectsAPI.getAll();
       setProjects(data);
     } catch (error) {
+      console.error('Error fetching projects:', error);
       addNotification({
         type: 'error',
         title: 'Error',
@@ -35,11 +34,17 @@ const ProjectsPage = () => {
   };
 
   useEffect(() => {
-    let mounted = true;
-    if (mounted) {
-      fetchProjects();
+    let isMounted = true;
+    
+    const loadProjects = async () => {
+      await fetchProjects();
+    };
+    
+    if (isMounted) {
+      loadProjects();
     }
-    return () => { mounted = false; };
+    
+    return () => { isMounted = false; };
   }, []);
 
   const handleCreateProject = () => {

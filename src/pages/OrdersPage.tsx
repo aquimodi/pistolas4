@@ -19,7 +19,10 @@ const OrdersPage = () => {
   const [editingOrder, setEditingOrder] = useState(null);
 
   const fetchData = async () => {
+    if (isLoading) return; // Evitar peticiones múltiples
+    
     try {
+      setIsLoading(true);
       if (projectId) {
         // Vista específica de proyecto
         const [projectData, ordersData] = await Promise.all([
@@ -46,7 +49,11 @@ const OrdersPage = () => {
   };
 
   useEffect(() => {
-    fetchData();
+    let mounted = true;
+    if (mounted) {
+      fetchData();
+    }
+    return () => { mounted = false; };
   }, [projectId]);
 
   const handleCreateOrder = () => {

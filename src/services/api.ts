@@ -11,11 +11,22 @@ class ApiService {
 
   private async handleResponse(response: Response) {
     if (!response.ok) {
-      // Si es un error 401, redirigir al login
+      // Manejar error 401 sin redirección automática
       if (response.status === 401) {
-        window.location.href = '/login';
-        return;
+        // Solo redirigir si no estamos ya en la página de login
+        if (window.location.pathname !== '/login') {
+          // Usar setTimeout para evitar bucles infinitos
+          setTimeout(() => {
+            window.location.href = '/login';
+          }, 100);
+        }
+        throw new Error('Authentication required');
       }
+      
+      if (response.status === 429) {
+        throw new Error('Too many requests. Please wait and try again.');
+      }
+      
       let error;
       try {
         error = await response.json();

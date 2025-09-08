@@ -27,9 +27,15 @@ const PORT = process.env.PORT || 3001;
 
 // Rate limiting
 const limiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutos
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 500, // Aumentar límite
   message: 'Too many requests from this IP, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+  // Excluir rutas de verificación de autenticación del rate limiting agresivo
+  skip: (req) => {
+    return req.path === '/api/auth/verify' || req.path === '/health';
+  }
 });
 
 // Middleware

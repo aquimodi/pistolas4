@@ -24,9 +24,14 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isVerifying, setIsVerifying] = useState(false);
 
   useEffect(() => {
     const verifySession = async () => {
+      // Evitar múltiples verificaciones simultáneas
+      if (isVerifying) return;
+      
+      setIsVerifying(true);
       try {
         const response = await fetch('/api/auth/verify', {
           credentials: 'include'
@@ -35,14 +40,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
         if (response.ok) {
           const data = await response.json();
           setUser(data.user);
-        } else {
+        } else if (response.status !== 401) {
+          // Solo loggear errores que no sean de autorización
+          console.error('Auth verification failed:', response.status);
           setUser(null);
         }
       } catch (error) {
-        console.error('Auth verification error:', error);
+        // Silenciar errores de red durante verificación inicial
         setUser(null);
+      } finally {
+        setIsVerifying(false);
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
 
     verifySession();

@@ -17,7 +17,10 @@ const ProjectsPage = () => {
   const [editingProject, setEditingProject] = useState(null);
 
   const fetchProjects = async () => {
+    if (isLoading) return; // Evitar peticiones múltiples
+    
     try {
+      setIsLoading(true);
       const data = await projectsAPI.getAll();
       setProjects(data);
     } catch (error) {
@@ -32,7 +35,11 @@ const ProjectsPage = () => {
   };
 
   useEffect(() => {
-    fetchProjects();
+    let mounted = true;
+    if (mounted) {
+      fetchProjects();
+    }
+    return () => { mounted = false; };
   }, []);
 
   const handleCreateProject = () => {

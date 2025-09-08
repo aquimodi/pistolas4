@@ -31,7 +31,11 @@ const DashboardPage = () => {
 
   useEffect(() => {
     const fetchDashboardData = async () => {
+      // Evitar peticiones si ya está cargando
+      if (isLoading) return;
+      
       try {
+        setIsLoading(true);
         const [projects, orders, equipment, systemMetrics] = await Promise.all([
           projectsAPI.getAll(),
           ordersAPI.getAll(),
@@ -63,14 +67,23 @@ const DashboardPage = () => {
       }
     };
 
-    fetchDashboardData();
+    // Solo cargar datos una vez al montar el componente
+    let mounted = true;
+    if (mounted) {
+      fetchDashboardData();
+    }
     
     // Refresh metrics every 30 seconds
     const interval = setInterval(() => {
-      monitoringAPI.getMetrics().then(setMetrics).catch(console.error);
+      if (mounted) {
+        monitoringAPI.getMetrics().then(setMetrics).catch(console.error);
+      }
     }, 30000);
 
-    return () => clearInterval(interval);
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
   }, []);
 
   if (isLoading) {

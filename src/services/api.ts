@@ -11,6 +11,11 @@ class ApiService {
 
   private async handleResponse(response: Response) {
     if (!response.ok) {
+      // Si es un error 401, redirigir al login
+      if (response.status === 401) {
+        window.location.href = '/login';
+        return;
+      }
       let error;
       try {
         error = await response.json();

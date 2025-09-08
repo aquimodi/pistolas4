@@ -21,6 +21,11 @@ function App() {
           <div className="min-h-screen bg-gray-50">
             <Routes>
               <Route path="/login" element={<LoginPage />} />
+              <Route path="*" element={
+                <ProtectedRoute>
+                  <Navigate to="/login" replace />
+                </ProtectedRoute>
+              } />
               <Route path="/" element={
                 <ProtectedRoute>
                   <Layout />

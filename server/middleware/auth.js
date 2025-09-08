@@ -2,8 +2,14 @@ import logger from '../utils/logger.js';
 
 export const authenticateSession = (req, res, next) => {
   if (!req.session.user) {
-    logger.warn(`Unauthorized access attempt from ${req.ip}`);
+    logger.warn(`Unauthorized access attempt from ${req.ip} to ${req.path}`);
     return res.status(401).json({ error: 'Authentication required' });
+  }
+
+  // Verificar que la sesión tenga datos válidos
+  if (!req.session.user.id || !req.session.user.username) {
+    logger.warn(`Invalid session data from ${req.ip}`);
+    return res.status(401).json({ error: 'Invalid session' });
   }
 
   req.user = req.session.user;

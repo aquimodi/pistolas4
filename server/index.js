@@ -131,25 +131,40 @@ app.use('*', (req, res) => {
 // Start server
 async function startServer() {
   try {
-    console.log('🚀 Starting Datacenter Equipment Management API...');
+    console.log('=================================');
+    console.log('🚀 STARTING DATACENTER API SERVER');
+    console.log('=================================');
     console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`📡 Host: ${HOST}`);
     console.log(`🔌 Port: ${PORT}`);
+    console.log(`📁 Working Directory: ${process.cwd()}`);
+    console.log(`📋 Process ID: ${process.pid}`);
+    console.log(`🔧 Node Version: ${process.version}`);
+    console.log(`⏰ Start Time: ${new Date().toISOString()}`);
     
+    console.log('Attempting database connection...');
     await connectDB();
     
+    console.log(`Creating server on ${HOST}:${PORT}...`);
     app.listen(PORT, HOST, () => {
       logger.info(`Server running on port ${PORT}`);
-      console.log(`🚀 Datacenter Equipment Management API running on ${HOST}:${PORT}`);
-      console.log(`📡 Environment: ${process.env.NODE_ENV || 'development'}`);
+      console.log('=================================');
+      console.log('✅ SERVER STARTED SUCCESSFULLY!');
+      console.log('=================================');
+      console.log(`🌐 Local Access: http://localhost:${PORT}`);
+      console.log(`🌍 External Access: http://${HOST}:${PORT}`);
+      console.log(`🏥 Health Check: http://localhost:${PORT}/health`);
       console.log(`📊 Database: ${process.env.DB_SERVER || 'localhost'}`);
-      console.log(`🌐 Access via: http://${HOST}:${PORT}`);
-      console.log(`🏥 Health check: http://${HOST}:${PORT}/health`);
-      console.log(`✅ Server startup completed successfully`);
+      console.log('=================================');
     });
   } catch (error) {
     logger.error('Failed to start server:', error);
-    console.error('❌ Server startup failed:', error);
+    console.error('=================================');
+    console.error('❌ SERVER STARTUP FAILED!');
+    console.error('=================================');
+    console.error('Error:', error.message);
+    console.error('Stack:', error.stack);
+    console.error('=================================');
     process.exit(1);
   }
 }

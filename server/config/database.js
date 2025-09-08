@@ -105,11 +105,11 @@ function getMockData(query) {
   
   if (queryLower.includes('projects') && queryLower.includes('select')) {
     const projects = [
-      { id: 1, name: 'DC Expansion Phase 1', description: 'Primary datacenter expansion with new server racks', status: 'active', created_at: new Date(), created_by: 1 },
-      { id: 2, name: 'Server Refresh 2024', description: 'Annual server hardware refresh and modernization', status: 'active', created_at: new Date(), created_by: 2 },
-      { id: 3, name: 'Network Upgrade Q1', description: 'Core network infrastructure upgrade', status: 'on_hold', created_at: new Date(), created_by: 1 },
-      { id: 4, name: 'Storage Migration', description: 'Migration from legacy storage to new NVMe-based systems', status: 'on_hold', created_at: new Date(), created_by: 2 },
-      { id: 5, name: 'Security Enhancement', description: 'Implementation of advanced security monitoring tools', status: 'completed', created_at: new Date(), created_by: 1 }
+      { id: 1, ritm_code: 'RITM0012345', project_name: 'Expansión Datacenter Fase 1', client: 'Telefónica España', datacenter: 'Madrid DC-1', delivery_date: '2024-06-30', teams_folder_url: 'https://teams.microsoft.com/l/channel/19%3A...', excel_file_path: '/uploads/projects/RITM0012345_equipment_list.xlsx', status: 'active', created_at: new Date(), created_by: 1 },
+      { id: 2, ritm_code: 'RITM0012346', project_name: 'Renovación Servidores 2024', client: 'BBVA', datacenter: 'Barcelona DC-2', delivery_date: '2024-05-15', teams_folder_url: 'https://teams.microsoft.com/l/channel/19%3A...', excel_file_path: '/uploads/projects/RITM0012346_server_specs.xlsx', status: 'active', created_at: new Date(), created_by: 2 },
+      { id: 3, ritm_code: 'RITM0012347', project_name: 'Upgrade Red Troncal Q1', client: 'Santander', datacenter: 'Sevilla DC-3', delivery_date: '2024-04-20', teams_folder_url: 'https://teams.microsoft.com/l/channel/19%3A...', excel_file_path: '/uploads/projects/RITM0012347_network_plan.xlsx', status: 'active', created_at: new Date(), created_by: 1 },
+      { id: 4, ritm_code: 'RITM0012348', project_name: 'Migración Storage NVMe', client: 'Iberdrola', datacenter: 'Valencia DC-4', delivery_date: '2024-07-10', teams_folder_url: 'https://teams.microsoft.com/l/channel/19%3A...', excel_file_path: '/uploads/projects/RITM0012348_storage_migration.xlsx', status: 'on_hold', created_at: new Date(), created_by: 2 },
+      { id: 5, ritm_code: 'RITM0012349', project_name: 'Mejora Seguridad SOC', client: 'Repsol', datacenter: 'Bilbao DC-5', delivery_date: '2024-03-31', teams_folder_url: 'https://teams.microsoft.com/l/channel/19%3A...', excel_file_path: '/uploads/projects/RITM0012349_security_tools.xlsx', status: 'completed', created_at: new Date(), created_by: 1 }
     ];
     console.log('📊 Mock projects:', projects.length);
     return projects;
@@ -121,19 +121,19 @@ function getMockData(query) {
     
     const allOrders = [
       // Órdenes para proyecto 1 (DC Expansion Phase 1)
-      { id: 1, project_id: 1, order_number: 'ORD-2024-001', vendor: 'Dell Technologies', description: '10x PowerEdge R750 servers', status: 'received', created_at: new Date(), project_name: 'DC Expansion Phase 1', expected_delivery_date: new Date(), created_by: 1 },
-      { id: 2, project_id: 1, order_number: 'ORD-2024-002', vendor: 'HPE', description: '5x ProLiant DL380 servers', status: 'pending', created_at: new Date(), project_name: 'DC Expansion Phase 1', expected_delivery_date: new Date(), created_by: 1 },
-      { id: 3, project_id: 1, order_number: 'ORD-2024-003', vendor: 'Cisco Systems', description: 'Network switches and routers', status: 'partial', created_at: new Date(), project_name: 'DC Expansion Phase 1', expected_delivery_date: new Date(), created_by: 2 },
+      { id: 1, project_id: 1, order_code: 'PED-2024-001', equipment_count: 10, vendor: 'Dell Technologies', description: '10x PowerEdge R750 servers con 64GB RAM', status: 'received', created_at: new Date(), project_name: 'Expansión Datacenter Fase 1', expected_delivery_date: new Date(), created_by: 1 },
+      { id: 2, project_id: 1, order_code: 'PED-2024-002', equipment_count: 5, vendor: 'HPE', description: '5x ProLiant DL380 Gen11 para virtualización', status: 'pending', created_at: new Date(), project_name: 'Expansión Datacenter Fase 1', expected_delivery_date: new Date(), created_by: 1 },
+      { id: 3, project_id: 1, order_code: 'PED-2024-003', equipment_count: 8, vendor: 'Cisco Systems', description: 'Switches y routers para infraestructura ampliada', status: 'partial', created_at: new Date(), project_name: 'Expansión Datacenter Fase 1', expected_delivery_date: new Date(), created_by: 2 },
       
       // Órdenes para proyecto 2 (Server Refresh 2024)
-      { id: 4, project_id: 2, order_number: 'ORD-2024-004', vendor: 'Dell Technologies', description: '15x PowerEdge R650 servers', status: 'pending', created_at: new Date(), project_name: 'Server Refresh 2024', expected_delivery_date: new Date(), created_by: 2 },
-      { id: 5, project_id: 2, order_number: 'ORD-2024-005', vendor: 'Lenovo', description: '8x ThinkSystem SR650 V3 servers', status: 'pending', created_at: new Date(), project_name: 'Server Refresh 2024', expected_delivery_date: new Date(), created_by: 1 },
+      { id: 4, project_id: 2, order_code: 'PED-2024-004', equipment_count: 15, vendor: 'Dell Technologies', description: '15x PowerEdge R650 servidores de reemplazo', status: 'pending', created_at: new Date(), project_name: 'Renovación Servidores 2024', expected_delivery_date: new Date(), created_by: 2 },
+      { id: 5, project_id: 2, order_code: 'PED-2024-005', equipment_count: 8, vendor: 'Lenovo', description: '8x ThinkSystem SR650 V3 para cargas críticas', status: 'pending', created_at: new Date(), project_name: 'Renovación Servidores 2024', expected_delivery_date: new Date(), created_by: 1 },
       
       // Órdenes para proyecto 3 (Network Upgrade Q1)
-      { id: 6, project_id: 3, order_number: 'ORD-2024-006', vendor: 'Cisco Systems', description: 'Catalyst 9000 series switches', status: 'received', created_at: new Date(), project_name: 'Network Upgrade Q1', expected_delivery_date: new Date(), created_by: 1 },
+      { id: 6, project_id: 3, order_code: 'PED-2024-006', equipment_count: 12, vendor: 'Cisco Systems', description: 'Catalyst 9000 series switches y ASR routers', status: 'received', created_at: new Date(), project_name: 'Upgrade Red Troncal Q1', expected_delivery_date: new Date(), created_by: 1 },
       
       // Órdenes para proyecto 4 (Storage Migration)
-      { id: 7, project_id: 4, order_number: 'ORD-2024-007', vendor: 'NetApp', description: 'AFF A800 all-flash storage arrays', status: 'pending', created_at: new Date(), project_name: 'Storage Migration', expected_delivery_date: new Date(), created_by: 2 }
+      { id: 7, project_id: 4, order_code: 'PED-2024-007', equipment_count: 6, vendor: 'NetApp', description: 'AFF A800 arrays de almacenamiento flash', status: 'pending', created_at: new Date(), project_name: 'Migración Storage NVMe', expected_delivery_date: new Date(), created_by: 2 }
     ];
     
     if (isProjectSpecific) {
@@ -153,15 +153,15 @@ function getMockData(query) {
     
     const allDeliveryNotes = [
       // Albaranes para pedido 1 (ORD-2024-001)
-      { id: 1, order_id: 1, delivery_note_number: 'DN-2024-001', delivery_date: new Date(), status: 'completed', carrier: 'FedEx', tracking_number: 'FX123456789', created_at: new Date(), order_number: 'ORD-2024-001', project_name: 'DC Expansion Phase 1', notes: 'First batch of servers', created_by: 3 },
-      { id: 2, order_id: 1, delivery_note_number: 'DN-2024-002', delivery_date: new Date(), status: 'completed', carrier: 'FedEx', tracking_number: 'FX987654321', created_at: new Date(), order_number: 'ORD-2024-001', project_name: 'DC Expansion Phase 1', notes: 'Remaining servers', created_by: 3 },
-      { id: 5, order_id: 1, delivery_note_number: 'DN-2024-005', delivery_date: new Date(), status: 'completed', carrier: 'FedEx', tracking_number: 'FX111222333', created_at: new Date(), order_number: 'ORD-2024-001', project_name: 'DC Expansion Phase 1', notes: 'Server accessories', created_by: 3 },
+      { id: 1, order_id: 1, delivery_code: 'ALB-2024-001', estimated_equipment_count: 5, delivery_date: new Date(), status: 'completed', carrier: 'FedEx', tracking_number: 'FX123456789', attached_document_path: '/uploads/delivery_notes/ALB-2024-001.pdf', created_at: new Date(), order_number: 'PED-2024-001', project_name: 'Expansión Datacenter Fase 1', notes: 'Primera entrega de servidores Dell - 5 unidades', created_by: 3 },
+      { id: 2, order_id: 1, delivery_code: 'ALB-2024-002', estimated_equipment_count: 5, delivery_date: new Date(), status: 'completed', carrier: 'FedEx', tracking_number: 'FX987654321', attached_document_path: '/uploads/delivery_notes/ALB-2024-002.pdf', created_at: new Date(), order_number: 'PED-2024-001', project_name: 'Expansión Datacenter Fase 1', notes: 'Segunda entrega completando el pedido - 5 unidades', created_by: 3 },
+      { id: 5, order_id: 1, delivery_code: 'ALB-2024-005', estimated_equipment_count: 3, delivery_date: new Date(), status: 'completed', carrier: 'FedEx', tracking_number: 'FX111222333', attached_document_path: '/uploads/delivery_notes/ALB-2024-005.pdf', created_at: new Date(), order_number: 'PED-2024-001', project_name: 'Expansión Datacenter Fase 1', notes: 'Accesorios y cables para servidores Dell', created_by: 3 },
       
       // Albaranes para pedido 3 (ORD-2024-003)
-      { id: 3, order_id: 3, delivery_note_number: 'DN-2024-003', delivery_date: new Date(), status: 'processing', carrier: 'UPS', tracking_number: 'UP555666777', created_at: new Date(), order_number: 'ORD-2024-003', project_name: 'DC Expansion Phase 1', notes: 'Switches delivered, routers pending', created_by: 3 },
+      { id: 3, order_id: 3, delivery_code: 'ALB-2024-003', estimated_equipment_count: 4, delivery_date: new Date(), status: 'processing', carrier: 'UPS', tracking_number: 'UP555666777', attached_document_path: '/uploads/delivery_notes/ALB-2024-003.pdf', created_at: new Date(), order_number: 'PED-2024-003', project_name: 'Expansión Datacenter Fase 1', notes: 'Switches Cisco entregados - routers pendientes', created_by: 3 },
       
       // Albaranes para pedido 6 (ORD-2024-006)
-      { id: 4, order_id: 6, delivery_note_number: 'DN-2024-004', delivery_date: new Date(), status: 'completed', carrier: 'DHL', tracking_number: 'DH999888777', created_at: new Date(), order_number: 'ORD-2024-006', project_name: 'Network Upgrade Q1', notes: 'Complete network equipment', created_by: 4 }
+      { id: 4, order_id: 6, delivery_code: 'ALB-2024-004', estimated_equipment_count: 12, delivery_date: new Date(), status: 'completed', carrier: 'DHL', tracking_number: 'DH999888777', attached_document_path: '/uploads/delivery_notes/ALB-2024-004.pdf', created_at: new Date(), order_number: 'PED-2024-006', project_name: 'Upgrade Red Troncal Q1', notes: 'Equipos de red Cisco completos según especificación', created_by: 4 }
     ];
     
     if (isAllDeliveryNotes) {

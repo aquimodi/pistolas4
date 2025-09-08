@@ -154,7 +154,9 @@ const OrdersPage = () => {
                       <FileText className="h-5 w-5 text-gray-600" />
                       <div>
                         <h3 className="text-sm font-medium text-gray-900">{order.order_number}</h3>
+                        <h3 className="text-sm font-medium text-gray-900">{order.order_code}</h3>
                         <p className="text-sm text-gray-600">Vendor: {order.vendor}</p>
+                        <p className="text-sm text-gray-600">Equipos: {order.equipment_count}</p>
                         {!projectId && order.project_name && (
                           <p className="text-xs text-gray-500">Project: {order.project_name}</p>
                         )}

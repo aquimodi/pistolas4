@@ -15,7 +15,8 @@ interface OrderModalProps {
 const OrderModal: React.FC<OrderModalProps> = ({ order, projectId, isOpen, onClose, onSave }) => {
   const { addNotification } = useNotification();
   const [formData, setFormData] = useState({
-    order_number: '',
+    order_code: '',
+    equipment_count: 0,
     vendor: '',
     description: '',
     expected_delivery_date: '',
@@ -26,7 +27,8 @@ const OrderModal: React.FC<OrderModalProps> = ({ order, projectId, isOpen, onClo
   useEffect(() => {
     if (order) {
       setFormData({
-        order_number: order.order_number || '',
+        order_code: order.order_code || '',
+        equipment_count: order.equipment_count || 0,
         vendor: order.vendor || '',
         description: order.description || '',
         expected_delivery_date: order.expected_delivery_date ? order.expected_delivery_date.split('T')[0] : '',
@@ -34,7 +36,8 @@ const OrderModal: React.FC<OrderModalProps> = ({ order, projectId, isOpen, onClo
       });
     } else {
       setFormData({
-        order_number: '',
+        order_code: '',
+        equipment_count: 0,
         vendor: '',
         description: '',
         expected_delivery_date: '',
@@ -101,48 +104,62 @@ const OrderModal: React.FC<OrderModalProps> = ({ order, projectId, isOpen, onClo
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Order Number *
+              Código Pedido *
             </label>
             <input
               type="text"
               required
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-              value={formData.order_number}
-              onChange={(e) => setFormData(prev => ({ ...prev, order_number: e.target.value }))}
-              placeholder="e.g., ORD-2024-001"
+              value={formData.order_code}
+              onChange={(e) => setFormData(prev => ({ ...prev, order_code: e.target.value }))}
+              placeholder="ej. PED-2024-001"
             />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Vendor *
+              Número de Equipos *
+            </label>
+            <input
+              type="number"
+              required
+              min="0"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              value={formData.equipment_count}
+              onChange={(e) => setFormData(prev => ({ ...prev, equipment_count: parseInt(e.target.value) || 0 }))}
+              placeholder="0"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Proveedor
             </label>
             <input
               type="text"
-              required
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               value={formData.vendor}
               onChange={(e) => setFormData(prev => ({ ...prev, vendor: e.target.value }))}
-              placeholder="e.g., Dell Technologies"
+              placeholder="ej. Dell Technologies"
             />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Description
+              Descripción
             </label>
             <textarea
               rows={3}
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               value={formData.description}
               onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-              placeholder="Order description..."
+              placeholder="Descripción del pedido..."
             />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Expected Delivery Date
+              Fecha de Entrega Esperada
             </label>
             <input
               type="date"

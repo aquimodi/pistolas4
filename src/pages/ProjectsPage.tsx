@@ -112,7 +112,10 @@ const ProjectsPage = () => {
                 <div className="flex items-center">
                   <Server className="h-8 w-8 text-blue-600 mr-3" />
                   <div>
-                    <h3 className="text-lg font-medium text-gray-900">{project.name}</h3>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">{project.ritm_code}</span>
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-900 mt-1">{project.project_name}</h3>
                     <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(project.status)}`}>
                       {project.status?.replace('_', ' ') || 'active'}
                     </span>
@@ -120,11 +123,38 @@ const ProjectsPage = () => {
                 </div>
               </div>
               
-              <p className="text-gray-600 text-sm mb-4 line-clamp-2">{project.description}</p>
+              <div className="text-gray-600 text-sm mb-4 space-y-1">
+                <div className="flex items-center">
+                  <Users className="h-4 w-4 mr-2" />
+                  Cliente: {project.client}
+                </div>
+                <div className="flex items-center">
+                  <Server className="h-4 w-4 mr-2" />
+                  Datacenter: {project.datacenter}
+                </div>
+                {project.delivery_date && (
+                  <div className="flex items-center">
+                    <Calendar className="h-4 w-4 mr-2" />
+                    Entrega: {new Date(project.delivery_date).toLocaleDateString()}
+                  </div>
+                )}
+              </div>
               
-              <div className="flex items-center text-xs text-gray-500 mb-4">
-                <Calendar className="h-4 w-4 mr-1" />
-                Created {new Date(project.created_at).toLocaleDateString()}
+              <div className="flex items-center justify-between text-xs text-gray-500 mb-4">
+                <div className="flex items-center">
+                  <Calendar className="h-4 w-4 mr-1" />
+                  Creado {new Date(project.created_at).toLocaleDateString()}
+                </div>
+                {project.teams_folder_url && (
+                  <a 
+                    href={project.teams_folder_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:text-blue-800"
+                  >
+                    Teams
+                  </a>
+                )}
               </div>
 
               <div className="flex space-x-2">

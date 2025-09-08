@@ -15,6 +15,7 @@ const DeliveryNotesPage = () => {
 
   const fetchData = async () => {
     try {
+      setIsLoading(true);
       if (orderId) {
         // Vista específica de un pedido
         const deliveryNotesData = await deliveryNotesAPI.getByOrder(orderId);
@@ -28,23 +29,20 @@ const DeliveryNotesPage = () => {
           project_name: 'DC Expansion Phase 1'
         });
       } else {
-        // Vista general de todos los delivery notes
-        // Como no tenemos un endpoint para todos los delivery notes, usamos mock data
-        const mockDeliveryNotes = [
-          { id: 1, delivery_note_number: 'DN-2024-001', delivery_date: new Date(), status: 'received', carrier: 'FedEx', order_number: 'ORD-2024-001', project_name: 'DC Expansion Phase 1' },
-          { id: 2, delivery_note_number: 'DN-2024-002', delivery_date: new Date(), status: 'processing', carrier: 'UPS', order_number: 'ORD-2024-002', project_name: 'Server Refresh 2024' },
-          { id: 3, delivery_note_number: 'DN-2024-003', delivery_date: new Date(), status: 'completed', carrier: 'DHL', order_number: 'ORD-2024-003', project_name: 'Network Upgrade Q1' }
-        ];
-        setDeliveryNotes(mockDeliveryNotes);
+        // Vista general de TODOS los delivery notes desde la base de datos
+        const deliveryNotesData = await deliveryNotesAPI.getAll();
+        setDeliveryNotes(deliveryNotesData);
         setOrder(null);
       }
     } catch (error) {
+      console.error('Error fetching delivery notes:', error);
       addNotification({
         type: 'error',
         title: 'Error',
         message: 'Failed to fetch delivery notes'
       });
     } finally {
+      setIsLoading(false);
       setIsLoading(false);
     }
   };

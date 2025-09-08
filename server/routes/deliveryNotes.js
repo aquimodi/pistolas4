@@ -5,6 +5,26 @@ import { authorizeRole } from '../middleware/auth.js';
 
 const router = express.Router();
 
+// Get all delivery notes
+router.get('/', async (req, res) => {
+  try {
+    logger.debug('Fetching all delivery notes');
+    const deliveryNotes = await executeQuery(
+      `SELECT dn.*, o.order_number, p.name as project_name 
+       FROM delivery_notes dn 
+       LEFT JOIN orders o ON dn.order_id = o.id 
+       LEFT JOIN projects p ON o.project_id = p.id 
+       ORDER BY dn.created_at DESC`
+    );
+    
+    logger.info(`Retrieved ${deliveryNotes.length} delivery notes total`);
+    res.json(deliveryNotes);
+  } catch (error) {
+    logger.error('Error fetching all delivery notes:', error);
+    res.status(500).json({ error: 'Failed to fetch delivery notes' });
+  }
+});
+
 // Get delivery notes by order
 router.get('/order/:orderId', async (req, res) => {
   try {

@@ -140,8 +140,9 @@ function getMockData(query) {
   }
   
   if (queryLower.includes('delivery_notes') && queryLower.includes('select')) {
-    // Detectar si es una consulta por pedido específico
+    // Detectar el tipo de consulta
     const isOrderSpecific = queryLower.includes('order_id = @param0');
+    const isAllDeliveryNotes = queryLower.includes('left join orders o on') && queryLower.includes('left join projects p on');
     
     const allDeliveryNotes = [
       // Albaranes para pedido 1 (ORD-2024-001)
@@ -155,6 +156,12 @@ function getMockData(query) {
       // Albaranes para pedido 6 (ORD-2024-006)
       { id: 4, order_id: 6, delivery_note_number: 'DN-2024-004', delivery_date: new Date(), status: 'completed', carrier: 'DHL', tracking_number: 'DH999888777', created_at: new Date(), order_number: 'ORD-2024-006', project_name: 'Network Upgrade Q1', notes: 'Complete network equipment', created_by: 4 }
     ];
+    
+    if (isAllDeliveryNotes) {
+      // Para consulta de TODOS los delivery notes con joins
+      console.log('📊 Mock ALL delivery notes with project info:', allDeliveryNotes.length);
+      return allDeliveryNotes;
+    }
     
     if (isOrderSpecific) {
       // Para consultas específicas de pedido, filtrar (mock - en realidad SQL lo haría)

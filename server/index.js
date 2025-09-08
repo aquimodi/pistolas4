@@ -23,17 +23,29 @@ import { errorHandler } from './middleware/errorHandler.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-const HOST = process.env.HOST || '0.0.0.0';
+const HOST = '0.0.0.0'; // Siempre escuchar en todas las interfaces
 
 // Add process error handlers
 process.on('uncaughtException', (err) => {
   logger.error('Uncaught Exception:', err);
+  console.error('❌ Uncaught Exception:', err.message);
 });
 
 process.on('unhandledRejection', (reason, promise) => {
   logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  console.error('❌ Unhandled Rejection:', reason);
 });
 
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('🛑 SIGTERM received, shutting down gracefully');
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  console.log('🛑 SIGINT received, shutting down gracefully');
+  process.exit(0);
+});
 // Rate limiting
 const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutos
@@ -56,7 +68,9 @@ app.use(cors({
   origin: process.env.ALLOWED_ORIGINS?.split(',') || [
     'http://localhost:5173', // Vite dev server
     'http://localhost:3000',
-    'http://localhost'
+    'http://localhost',
+    'http://107.3.52.136',
+    'https://107.3.52.136'
   ],
   credentials: true,
   optionsSuccessStatus: 200,
@@ -83,9 +97,19 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Health check
 app.get('/health', (req, res) => {
+  console.log('🏥 Health check accessed');
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
+// Root route
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'Datacenter Equipment Management API', 
+    status: 'running',
+    version: '1.0.0',
+    timestamp: new Date().toISOString()
+  });
+});
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/projects', authenticateSession, projectRoutes);
@@ -100,18 +124,28 @@ app.use(errorHandler);
 // 404 handler
 app.use('*', (req, res) => {
   logger.warn(`404 - Route not found: ${req.originalUrl}`);
+  console.log(`❌ 404 - Route not found: ${req.originalUrl}`);
   res.status(404).json({ error: 'Route not found' });
 });
 
 // Start server
 async function startServer() {
   try {
+    console.log('🚀 Starting Datacenter Equipment Management API...');
+    console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`📡 Host: ${HOST}`);
+    console.log(`🔌 Port: ${PORT}`);
+    
     await connectDB();
+    
     app.listen(PORT, HOST, () => {
       logger.info(`Server running on port ${PORT}`);
       console.log(`🚀 Datacenter Equipment Management API running on ${HOST}:${PORT}`);
       console.log(`📡 Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`📊 Database: ${process.env.DB_SERVER || 'localhost'}`);
+      console.log(`🌐 Access via: http://${HOST}:${PORT}`);
+      console.log(`🏥 Health check: http://${HOST}:${PORT}/health`);
+      console.log(`✅ Server startup completed successfully`);
     });
   } catch (error) {
     logger.error('Failed to start server:', error);

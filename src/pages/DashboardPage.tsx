@@ -45,6 +45,7 @@ const DashboardPage = () => {
 
   useEffect(() => {
     let isMounted = true;
+    let intervalId: NodeJS.Timeout | null = null;
     
     const fetchDashboardData = async () => {      
       try {
@@ -59,25 +60,25 @@ const DashboardPage = () => {
         try {
           projects = await projectsAPI.getAll();
         } catch (error) {
-          console.warn('Failed to load projects, using empty array');
+          console.warn('Failed to load projects:', error.message);
         }
         
         try {
           orders = await ordersAPI.getAll();
         } catch (error) {
-          console.warn('Failed to load orders, using empty array');
+          console.warn('Failed to load orders:', error.message);
         }
         
         try {
           equipment = await equipmentAPI.getAll();
         } catch (error) {
-          console.warn('Failed to load equipment, using empty array');
+          console.warn('Failed to load equipment:', error.message);
         }
         
         try {
           systemMetrics = await monitoringAPI.getMetrics();
         } catch (error) {
-          console.warn('Failed to load metrics, using defaults');
+          console.warn('Failed to load metrics:', error.message);
         }
 
         if (isMounted) {
@@ -109,18 +110,28 @@ const DashboardPage = () => {
 
     fetchDashboardData();
     
-    // Refresh metrics every 30 seconds
-    const interval = setInterval(() => {
-      if (isMounted) {
+    // Refresh metrics every 30 seconds, but only after initial load
+    const startPolling = () => {
+      intervalId = setInterval(() => {
+        if (!isMounted) return;
         monitoringAPI.getMetrics()
           .then(setMetrics)
-          .catch(() => console.warn('Failed to refresh metrics'));
-      }
-    }, 30000);
+          .catch((err) => {
+            console.warn('Failed to refresh metrics:', err.message);
+            // Stop polling on persistent errors
+            if (intervalId) clearInterval(intervalId);
+          });
+      }, 30000);
+    };
+    
+    // Start polling after 5 seconds to avoid conflicts with initial load
+    setTimeout(startPolling, 5000);
 
     return () => {
       isMounted = false;
-      clearInterval(interval);
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
     };
   }, []);
 

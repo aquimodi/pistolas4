@@ -13,13 +13,8 @@ class ApiService {
     if (!response.ok) {
       // Manejar error 401 sin redirección automática
       if (response.status === 401) {
-        // Solo redirigir si no estamos ya en la página de login
-        if (window.location.pathname !== '/login') {
-          // Usar setTimeout para evitar bucles infinitos
-          setTimeout(() => {
-            window.location.href = '/login';
-          }, 100);
-        }
+        // No hacer redirección automática desde el API service
+        // Dejar que AuthContext maneje la redirección
         throw new Error('Authentication required');
       }
       

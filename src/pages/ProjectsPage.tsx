@@ -37,12 +37,12 @@ const ProjectsPage = () => {
     let isMounted = true;
     
     const loadProjects = async () => {
-      await fetchProjects();
+      if (isMounted) {
+        await fetchProjects();
+      }
     };
     
-    if (isMounted) {
-      loadProjects();
-    }
+    loadProjects();
     
     return () => { isMounted = false; };
   }, []);

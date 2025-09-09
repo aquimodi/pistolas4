@@ -25,6 +25,11 @@ export function useApiData<T>(
       });
 
       if (!response.ok) {
+        if (response.status === 401) {
+          // Don't retry on auth errors
+          setError('Authentication required');
+          return;
+        }
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
@@ -32,20 +37,46 @@ export function useApiData<T>(
       setData(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
+      // Stop interval on persistent errors
+      if (interval && interval > 0) {
+        console.warn('Stopping API polling due to error:', err);
+        return 'STOP_POLLING';
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchData();
+    let intervalId: NodeJS.Timeout | null = null;
+    let isMounted = true;
     
-    // Set up interval if specified
-    if (interval && interval > 0) {
-      const intervalId = setInterval(fetchData, interval);
-      return () => clearInterval(intervalId);
-    }
-  }, dependencies);
+    const runFetch = async () => {
+      if (!isMounted) return;
+      
+      const result = await fetchData();
+      
+      // Set up interval if specified and no errors
+      if (result !== 'STOP_POLLING' && interval && interval > 0 && isMounted) {
+        intervalId = setInterval(async () => {
+          if (!isMounted) return;
+          const intervalResult = await fetchData();
+          if (intervalResult === 'STOP_POLLING' && intervalId) {
+            clearInterval(intervalId);
+          }
+        }, interval);
+      }
+    };
+    
+    runFetch();
+    
+    return () => {
+      isMounted = false;
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [...dependencies, interval]); // Add interval to dependencies
 
   const refetch = () => {
     fetchData();

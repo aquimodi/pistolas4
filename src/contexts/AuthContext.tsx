@@ -33,6 +33,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
       
       setIsVerifying(true);
       try {
+        // Solo verificar sesión si no estamos en la página de login
+        if (window.location.pathname === '/login') {
+          setUser(null);
+          setIsLoading(false);
+          setIsVerifying(false);
+          return;
+        }
+        
         const response = await fetch('/api/auth/verify', {
           credentials: 'include'
         });
@@ -45,11 +53,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
           setUser(null);
         } else {
           // Only log non-401 errors
-          console.error('Auth verification failed:', response.status);
+          console.warn('Auth verification failed:', response.status);
           setUser(null);
         }
       } catch (error) {
-        // Silence network errors during initial verification
+        // Silence network errors and don't cause redirects
+        console.warn('Auth verification network error, continuing without auth');
         setUser(null);
       } finally {
         setIsVerifying(false);
@@ -58,7 +67,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     };
 
     verifySession();
-  }, []);
+  }, [isVerifying]); // Add isVerifying to dependencies to prevent multiple calls
 
   const login = async (username: string, password: string) => {
     try {

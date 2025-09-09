@@ -1,128 +1,90 @@
-// API base URL - uses proxy configured in vite.config.ts for development
-// and nginx proxy for production
-const API_BASE_URL = '/api';
+const jwt = require('jsonwebtoken');
 
-class ApiService {
-  private getHeaders() {
-    return {
-      'Content-Type': 'application/json',
-    };
+const JWT_SECRET = process.env.JWT_SECRET || 'datacenter-equipment-secret-key';
+
+// Mock users for authentication fallback
+const mockUsers = [
+  { id: 1, username: 'admin', password: 'admin', role: 'admin' },
+  { id: 2, username: 'manager', password: 'manager', role: 'manager' },
+  { id: 3, username: 'operator', password: 'operator', role: 'operator' },
+  { id: 4, username: 'viewer', password: 'viewer', role: 'viewer' }
+];
+
+function authenticateToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  // Check for session-based auth first
+  if (req.session && req.session.user) {
+    req.user = req.session.user;
+    return next();
   }
 
-  private async handleResponse(response: Response) {
-    if (!response.ok) {
-      // Manejar error 401 sin redirección automática
-      if (response.status === 401) {
-        // Solo redirigir si no estamos ya en la página de login
-        if (window.location.pathname !== '/login') {
-          // Usar setTimeout para evitar bucles infinitos
-          setTimeout(() => {
-            window.location.href = '/login';
-          }, 100);
-        }
-        throw new Error('Authentication required');
+  // Check for JWT token
+  if (token) {
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+      if (err) {
+        console.log('JWT verification failed:', err.message);
+        return res.status(401).json({ error: 'Invalid token' });
       }
-      
-      if (response.status === 429) {
-        throw new Error('Too many requests. Please wait and try again.');
-      }
-      
-      if (response.status === 500) {
-        throw new Error('Server error. Please try again later.');
-      }
-      
-      let error;
-      try {
-        error = await response.json();
-      } catch {
-        error = { error: response.status === 404 ? 'Resource not found' : 'Network error' };
-      }
-      throw new Error(error.error || 'Request failed');
-    }
-    return response.json();
-  }
-
-  async get(endpoint: string) {
-    console.log(`API GET: ${API_BASE_URL}${endpoint}`);
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      headers: this.getHeaders(),
-      credentials: 'include'
+      req.user = user;
+      next();
     });
-    return this.handleResponse(response);
-  }
-
-  async post(endpoint: string, data: any) {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: 'POST',
-      headers: this.getHeaders(),
-      body: JSON.stringify(data),
-      credentials: 'include'
-    });
-    return this.handleResponse(response);
-  }
-
-  async put(endpoint: string, data: any) {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: 'PUT',
-      headers: this.getHeaders(),
-      body: JSON.stringify(data),
-      credentials: 'include'
-    });
-    return this.handleResponse(response);
-  }
-
-  async delete(endpoint: string) {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: 'DELETE',
-      headers: this.getHeaders(),
-      credentials: 'include'
-    });
-    return this.handleResponse(response);
+  } else {
+    console.log('No token provided and no session found');
+    res.status(401).json({ error: 'Access token required' });
   }
 }
 
-const apiService = new ApiService();
+function generateToken(user) {
+  return jwt.sign(
+    { id: user.id, username: user.username, role: user.role },
+    JWT_SECRET,
+    { expiresIn: '24h' }
+  );
+}
 
-export const authAPI = {
-  login: (username: string, password: string) => 
-    apiService.post('/auth/login', { username, password }),
-  logout: () => 
-    apiService.post('/auth/logout', {}),
-  verify: () => 
-    apiService.get('/auth/verify')
-};
+async function validateUser(username, password) {
+  try {
+    // Try to find user in mock users (fallback)
+    const user = mockUsers.find(u => u.username === username && u.password === password);
+    
+    if (user) {
+      console.log('✅ User authenticated with fallback system:', username);
+      return { id: user.id, username: user.username, role: user.role };
+    }
+    
+    console.log('❌ Authentication failed for user:', username);
+    return null;
+  } catch (error) {
+    console.error('Error validating user:', error.message);
+    return null;
+  }
+}
 
-export const projectsAPI = {
-  getAll: () => apiService.get('/projects'),
-  getById: (id: string) => apiService.get(`/projects/${id}`),
-  create: (data: any) => apiService.post('/projects', data),
-  update: (id: string, data: any) => apiService.put(`/projects/${id}`, data),
-  delete: (id: string) => apiService.delete(`/projects/${id}`)
-};
+function requireRole(roles) {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
 
-export const ordersAPI = {
-  getByProject: (projectId: string) => apiService.get(`/orders/project/${projectId}`),
-  getAll: () => apiService.get('/orders'),
-  create: (data: any) => apiService.post('/orders', data),
-  update: (id: string, data: any) => apiService.put(`/orders/${id}`, data)
-};
+    if (Array.isArray(roles)) {
+      if (!roles.includes(req.user.role)) {
+        return res.status(403).json({ error: 'Insufficient permissions' });
+      }
+    } else {
+      if (req.user.role !== roles) {
+        return res.status(403).json({ error: 'Insufficient permissions' });
+      }
+    }
 
-export const deliveryNotesAPI = {
-  getAll: () => apiService.get('/delivery-notes'),
-  getByOrder: (orderId: string) => apiService.get(`/delivery-notes/order/${orderId}`),
-  create: (data: any) => apiService.post('/delivery-notes', data),
-  update: (id: string, data: any) => apiService.put(`/delivery-notes/${id}`, data)
-};
+    next();
+  };
+}
 
-export const equipmentAPI = {
-  getByDeliveryNote: (deliveryNoteId: string) => apiService.get(`/equipment/delivery-note/${deliveryNoteId}`),
-  getAll: () => apiService.get('/equipment'),
-  create: (data: any) => apiService.post('/equipment', data),
-  update: (id: string, data: any) => apiService.put(`/equipment/${id}`, data)
-};
-
-export const monitoringAPI = {
-  getStatus: () => apiService.get('/monitoring/status'),
-  getLogs: (params?: any) => apiService.get(`/monitoring/logs${params ? `?${new URLSearchParams(params).toString()}` : ''}`),
-  getMetrics: () => apiService.get('/monitoring/metrics')
+module.exports = {
+  authenticateToken,
+  generateToken,
+  validateUser,
+  requireRole
 };

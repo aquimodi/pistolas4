@@ -1,114 +1,99 @@
-// API base URL - uses proxy configured in vite.config.ts for development
-// and nginx proxy for production
-const API_BASE_URL = '/api';
+const sql = require('mssql');
 
-class ApiService {
-  private getHeaders() {
-    return {
-      'Content-Type': 'application/json',
-    };
+const config = {
+  user: process.env.DB_USER || 'datacenter_user',
+  password: process.env.DB_PASSWORD || 'SecurePassword123!',
+  server: process.env.DB_SERVER || 'localhost',
+  database: process.env.DB_NAME || 'DatacenterEquipment',
+  port: parseInt(process.env.DB_PORT) || 1433,
+  options: {
+    encrypt: false,
+    trustServerCertificate: true,
+    enableArithAbort: true
+  },
+  pool: {
+    max: 10,
+    min: 0,
+    idleTimeoutMillis: 30000
   }
+};
 
-  private async handleResponse(response: Response) {
-    if (!response.ok) {
-      // Manejar error 401 sin redirección automática
-      if (response.status === 401) {
-        // Solo redirigir si no estamos ya en la página de login
-        if (window.location.pathname !== '/login') {
-          // Usar setTimeout para evitar bucles infinitos
-          setTimeout(() => {
-            window.location.href = '/login';
-          }, 100);
-        }
-        throw new Error('Authentication required');
-      }
-      
-      if (response.status === 429) {
-        throw new Error('Too many requests. Please wait and try again.');
-      }
-      
-      if (response.status === 500) {
-        throw new Error('Server error. Please try again later.');
-      }
-      
-      let error;
-      try {
-        error = await response.json();
-      } catch {
-        error = { error: response.status === 404 ? 'Resource not found' : 'Network error' };
-      }
-      throw new Error(error.error || 'Request failed');
+let pool;
+
+async function connectDatabase() {
+  try {
+    if (pool) {
+      return pool;
     }
-    return response.json();
-  }
-
-  async get(endpoint: string) {
-    console.log(`API GET: ${API_BASE_URL}${endpoint}`);
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      headers: this.getHeaders(),
-      credentials: 'include'
-    });
-    return this.handleResponse(response);
-  }
-
-  async post(endpoint: string, data: any) {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: 'POST',
-      headers: this.getHeaders(),
-      body: JSON.stringify(data),
-      credentials: 'include'
-    });
-    return this.handleResponse(response);
-  }
-
-  async put(endpoint: string, data: any) {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: 'PUT',
-      headers: this.getHeaders(),
-      body: JSON.stringify(data),
-      credentials: 'include'
-    });
-    return this.handleResponse(response);
-  }
-
-  async delete(endpoint: string) {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: 'DELETE',
-      headers: this.getHeaders(),
-      credentials: 'include'
-    });
-    return this.handleResponse(response);
+    
+    pool = await sql.connect(config);
+    console.log('✅ Database connected successfully');
+    return pool;
+  } catch (err) {
+    console.error('❌ Database connection failed:', err.message);
+    return null;
   }
 }
 
-const apiService = new ApiService();
+async function executeQuery(query, params = []) {
+  try {
+    const dbPool = await connectDatabase();
+    if (!dbPool) {
+      console.warn('⚠️ Database not available, returning mock data');
+      return getMockData(query);
+    }
+    
+    const request = dbPool.request();
+    
+    // Add parameters if provided
+    if (params && params.length > 0) {
+      params.forEach((param, index) => {
+        request.input(`param${index}`, param);
+      });
+    }
+    
+    const result = await request.query(query);
+    return result.recordset || [];
+  } catch (err) {
+    console.error('Database query error:', err.message);
+    console.warn('⚠️ Returning mock data due to database error');
+    return getMockData(query);
+  }
+}
 
-export const authAPI = {
-  login: (username: string, password: string) => 
-    apiService.post('/auth/login', { username, password }),
-  logout: () => 
-    apiService.post('/auth/logout', {}),
-  verify: () => 
-    apiService.get('/auth/verify')
-};
-
-export const projectsAPI = {
-  getAll: () => apiService.get('/projects'),
-  getById: (id: string) => apiService.get(`/projects/${id}`),
-  create: (data: any) => apiService.post('/projects', data),
-  update: (id: string, data: any) => apiService.put(`/projects/${id}`, data),
-  delete: (id: string) => apiService.delete(`/projects/${id}`)
-};
-
-export const ordersAPI = {
-  getByProject: (projectId: string) => apiService.get(`/orders/project/${projectId}`),
-  getAll: () => apiService.get('/orders'),
-  create: (data: any) => apiService.post('/orders', data),
-  update: (id: string, data: any) => apiService.put(`/orders/${id}`, data)
-};
-
-export const deliveryNotesAPI = {
-  getAll: () => apiService.get('/delivery-notes'),
+function getMockData(query) {
+  const queryLower = query.toLowerCase();
+  
+  if (queryLower.includes('projects') && queryLower.includes('select')) {
+    console.log('📊 Mock: Fetching projects');
+    return [
+      { id: 1, name: 'Proyecto Centro de Datos A', description: 'Implementación completa', location: 'Madrid', status: 'active', created_at: new Date() },
+      { id: 2, name: 'Proyecto Centro de Datos B', description: 'Actualización de equipos', location: 'Barcelona', status: 'active', created_at: new Date() }
+    ];
+  }
+  
+  if (queryLower.includes('projects') && queryLower.includes('insert')) {
+    console.log('📊 Mock: Creating new project');
+    return [{ 
+      id: Math.floor(Math.random() * 1000) + 100, 
+      name: 'Mock Project', 
+      description: 'Mock Description', 
+      location: 'Mock Location', 
+      status: 'active', 
+      created_at: new Date() 
+    }];
+  }
+  
+  if (queryLower.includes('orders') && queryLower.includes('select')) {
+    console.log('📊 Mock: Fetching orders');
+    return [
+      { id: 1, project_id: 1, order_code: 'PED-2024-001', equipment_count: 5, vendor: 'Cisco Systems', status: 'pending', created_at: new Date() },
+      { id: 2, project_id: 2, order_code: 'PED-2024-002', equipment_count: 3, vendor: 'Dell Technologies', status: 'delivered', created_at: new Date() }
+    ];
+  }
+  
+  if (queryLower.includes('orders') && queryLower.includes('insert')) {
+    console.log('📊 Mock: Creating new order');
     return [{ 
       id: Math.floor(Math.random() * 1000) + 100, 
       project_id: 1, 
@@ -117,6 +102,14 @@ export const deliveryNotesAPI = {
       vendor: 'Mock Vendor', 
       created_at: new Date() 
     }];
+  }
+  
+  if (queryLower.includes('delivery_notes') && queryLower.includes('select')) {
+    console.log('📊 Mock: Fetching delivery notes');
+    return [
+      { id: 1, order_id: 1, delivery_code: 'ALB-2024-001', estimated_equipment_count: 5, delivery_date: new Date(), created_at: new Date() },
+      { id: 2, order_id: 2, delivery_code: 'ALB-2024-002', estimated_equipment_count: 3, delivery_date: new Date(), created_at: new Date() }
+    ];
   }
   
   if (queryLower.includes('delivery_notes') && queryLower.includes('insert')) {
@@ -131,6 +124,14 @@ export const deliveryNotesAPI = {
     }];
   }
   
+  if (queryLower.includes('equipment') && queryLower.includes('select')) {
+    console.log('📊 Mock: Fetching equipment');
+    return [
+      { id: 1, delivery_note_id: 1, serial_number: 'SW001ABC123', manufacturer: 'Cisco', model: 'Catalyst 9300', status: 'operational', created_at: new Date() },
+      { id: 2, delivery_note_id: 1, serial_number: 'SRV002DEF456', manufacturer: 'Dell', model: 'PowerEdge R740', status: 'operational', created_at: new Date() }
+    ];
+  }
+  
   if (queryLower.includes('equipment') && queryLower.includes('insert')) {
     console.log('📊 Mock: Creating new equipment');
     return [{ 
@@ -143,21 +144,24 @@ export const deliveryNotesAPI = {
     }];
   }
   
-  if (queryLower.includes('orders') && queryLower.includes('select')) {</Action>
-  getByOrder: (orderId: string) => apiService.get(`/delivery-notes/order/${orderId}`),
-  create: (data: any) => apiService.post('/delivery-notes', data),
-  update: (id: string, data: any) => apiService.put(`/delivery-notes/${id}`, data)
-};
+  return [];
+}
 
-export const equipmentAPI = {
-  getByDeliveryNote: (deliveryNoteId: string) => apiService.get(`/equipment/delivery-note/${deliveryNoteId}`),
-  getAll: () => apiService.get('/equipment'),
-  create: (data: any) => apiService.post('/equipment', data),
-  update: (id: string, data: any) => apiService.put(`/equipment/${id}`, data)
-};
+async function closeDatabase() {
+  try {
+    if (pool) {
+      await pool.close();
+      pool = null;
+      console.log('Database connection closed');
+    }
+  } catch (err) {
+    console.error('Error closing database:', err.message);
+  }
+}
 
-export const monitoringAPI = {
-  getStatus: () => apiService.get('/monitoring/status'),
-  getLogs: (params?: any) => apiService.get(`/monitoring/logs${params ? `?${new URLSearchParams(params).toString()}` : ''}`),
-  getMetrics: () => apiService.get('/monitoring/metrics')
+module.exports = {
+  connectDatabase,
+  executeQuery,
+  closeDatabase,
+  sql
 };

@@ -1,138 +1,128 @@
-// API base URL - uses proxy configured in vite.config.ts for development
-// and nginx proxy for production
-const API_BASE_URL = '/api';
+import express from 'express';
+import { executeQuery } from '../config/database.js';
+import logger from '../utils/logger.js';
 
-class ApiService {
-  private getHeaders() {
-    return {
-      'Content-Type': 'application/json',
-    };
-  }
+const router = express.Router();
 
-  private async handleResponse(response: Response) {
-    if (!response.ok) {
-      // Manejar error 401 sin redirección automática
-      if (response.status === 401) {
-        // Solo redirigir si no estamos ya en la página de login
-        if (window.location.pathname !== '/login') {
-          // Usar setTimeout para evitar bucles infinitos
-          setTimeout(() => {
-            window.location.href = '/login';
-          }, 100);
-        }
-        throw new Error('Authentication required');
-      }
-      
-      if (response.status === 429) {
-        throw new Error('Too many requests. Please wait and try again.');
-      }
-      
-      if (response.status === 500) {
-        throw new Error('Server error. Please try again later.');
-      }
-      
-      let error;
-      try {
-        error = await response.json();
-      } catch {
-        error = { error: response.status === 404 ? 'Resource not found' : 'Network error' };
-      }
-      throw new Error(error.error || 'Request failed');
+// Login endpoint
+router.post('/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+
+    if (!username || !password) {
+      logger.warn('Login attempt with missing credentials', { ip: req.ip });
+      return res.status(400).json({ error: 'Username and password are required' });
     }
-    return response.json();
-  }
 
-  async get(endpoint: string) {
-    console.log(`API GET: ${API_BASE_URL}${endpoint}`);
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      headers: this.getHeaders(),
-      credentials: 'include'
+    logger.info('Login attempt', { username, ip: req.ip });
+
+    // Query user from database
+    const users = await executeQuery(
+      'SELECT id, username, email, password, role, is_active FROM users WHERE username = @param0',
+      [username]
+    );
+
+    if (users.length === 0) {
+      logger.warn('Login failed - user not found', { username, ip: req.ip });
+      return res.status(401).json({ error: 'Invalid username or password' });
+    }
+
+    const user = users[0];
+
+    // Check if user is active
+    if (!user.is_active) {
+      logger.warn('Login failed - user inactive', { username, ip: req.ip });
+      return res.status(401).json({ error: 'Account is disabled' });
+    }
+
+    // Direct password comparison (plain text)
+    if (password !== user.password) {
+      logger.warn('Login failed - invalid password', { username, ip: req.ip });
+      return res.status(401).json({ error: 'Invalid username or password' });
+    }
+
+    // Update last login
+    try {
+      await executeQuery(
+        'UPDATE users SET last_login = GETDATE() WHERE id = @param0',
+        [user.id]
+      );
+    } catch (updateError) {
+      logger.warn('Failed to update last login', { userId: user.id, error: updateError.message });
+    }
+
+    // Create session
+    req.session.user = {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      role: user.role
+    };
+
+    logger.info('Login successful', { 
+      userId: user.id, 
+      username: user.username, 
+      role: user.role,
+      ip: req.ip 
     });
-    return this.handleResponse(response);
-  }
 
-  async post(endpoint: string, data: any) {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: 'POST',
-      headers: this.getHeaders(),
-      body: JSON.stringify(data),
-      credentials: 'include'
+    res.json({
+      success: true,
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        role: user.role
+      }
     });
-    return this.handleResponse(response);
+  } catch (error) {
+    logger.error('Login error:', error);
+    res.status(500).json({ error: 'Login system error' });
   }
+});
 
-  async put(endpoint: string, data: any) {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: 'PUT',
-      headers: this.getHeaders(),
-      body: JSON.stringify(data),
-      credentials: 'include'
+// Logout endpoint
+router.post('/logout', (req, res) => {
+  try {
+    const userId = req.session?.user?.id;
+    const username = req.session?.user?.username;
+    
+    req.session.destroy((err) => {
+      if (err) {
+        logger.error('Session destruction error:', err);
+        return res.status(500).json({ error: 'Logout failed' });
+      }
+      
+      logger.info('User logged out', { userId, username, ip: req.ip });
+      res.clearCookie('connect.sid');
+      res.json({ success: true, message: 'Logged out successfully' });
     });
-    return this.handleResponse(response);
+  } catch (error) {
+    logger.error('Logout error:', error);
+    res.status(500).json({ error: 'Logout system error' });
   }
+});
 
-  async delete(endpoint: string) {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: 'DELETE',
-      headers: this.getHeaders(),
-      credentials: 'include'
-    });
-    return this.handleResponse(response);
-  }
-}
-
-const apiService = new ApiService();
-
-export const authAPI = {
-  login: (username: string, password: string) => 
-    apiService.post('/auth/login', { username, password }),
-  logout: () => 
-    apiService.post('/auth/logout', {}),
-  verify: () => 
-    apiService.get('/auth/verify')
-};
-
-export const projectsAPI = {
-  getAll: () => apiService.get('/projects'),
-  getById: (id: string) => apiService.get(`/projects/${id}`),
-  create: (data: any) => apiService.post('/projects', data),
-  update: (id: string, data: any) => apiService.put(`/projects/${id}`, data),
-  delete: (id: string) => apiService.delete(`/projects/${id}`)
-};
-
-export const ordersAPI = {
-  getByProject: (projectId: string) => apiService.get(`/orders/project/${projectId}`),
-  getAll: () => apiService.get('/orders'),
-  getById: (id: string) => apiService.get(`/orders/${id}`),
-  create: (data: any) => apiService.post('/orders', data),
-  update: (id: string, data: any) => apiService.put(`/orders/${id}`, data)
-};
-
-export const deliveryNotesAPI = {
-  getAll: () => apiService.get('/delivery-notes'),
-  getByOrder: (orderId: string) => apiService.get(`/delivery-notes/order/${orderId}`),
+// Verify session endpoint
+router.get('/verify', (req, res) => {
   try {
     if (req.session && req.session.user) {
-      res.json({ valid: true, user: req.session.user });
+      logger.debug('Session verification successful', { 
+        userId: req.session.user.id,
+        username: req.session.user.username 
+      });
+      res.json({ 
+        valid: true, 
+        user: req.session.user 
+      });
     } else {
+      logger.debug('Session verification failed - no valid session', { ip: req.ip });
       res.status(401).json({ error: 'No active session' });
     }
   } catch (error) {
     logger.error('Session verification error:', error);
     res.status(500).json({ error: 'Session verification failed' });
   }
-  update: (id: string, data: any) => apiService.put(`/delivery-notes/${id}`, data)
-};
+});
 
-export const equipmentAPI = {
-  getByDeliveryNote: (deliveryNoteId: string) => apiService.get(`/equipment/delivery-note/${deliveryNoteId}`),
-  getAll: () => apiService.get('/equipment'),
-  create: (data: any) => apiService.post('/equipment', data),
-  update: (id: string, data: any) => apiService.put(`/equipment/${id}`, data)
-};
-
-export const monitoringAPI = {
-  getStatus: () => apiService.get('/monitoring/status'),
-  getLogs: (params?: any) => apiService.get(`/monitoring/logs${params ? `?${new URLSearchParams(params).toString()}` : ''}`),
-  getMetrics: () => apiService.get('/monitoring/metrics')
-};
+export default router;

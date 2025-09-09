@@ -1,130 +1,172 @@
-// API base URL - uses proxy configured in vite.config.ts for development
-// and nginx proxy for production
-const API_BASE_URL = '/api';
+import sql from 'mssql';
+import logger from '../utils/logger.js';
 
-class ApiService {
-  private getHeaders() {
-    return {
-      'Content-Type': 'application/json',
-    };
-  }
-
-  private async handleResponse(response: Response) {
-    if (!response.ok) {
-      // Manejar error 401 sin redirección automática
-      if (response.status === 401) {
-        // Solo redirigir si no estamos ya en la página de login
-        if (window.location.pathname !== '/login') {
-          // Usar setTimeout para evitar bucles infinitos
-          setTimeout(() => {
-            window.location.href = '/login';
-          }, 100);
-        }
-        throw new Error('Authentication required');
-      }
-      
-      if (response.status === 429) {
-        throw new Error('Too many requests. Please wait and try again.');
-      }
-      
-      if (response.status === 500) {
-        throw new Error('Server error. Please try again later.');
-      }
-      
-      let error;
-      try {
-        error = await response.json();
-      } catch {
-        error = { error: response.status === 404 ? 'Resource not found' : 'Network error' };
-      }
-      throw new Error(error.error || 'Request failed');
+// Database configuration
+const config = {
+  server: process.env.DB_SERVER || 'localhost',
+  port: parseInt(process.env.DB_PORT) || 1433,
+  database: process.env.DB_DATABASE || 'datacenter_equipment',
+  user: process.env.DB_USER || 'sa',
+  password: process.env.DB_PASSWORD || 'YourStrongPassword123!',
+  options: {
+    encrypt: false, // Set to true if using Azure
+    trustServerCertificate: true,
+    enableArithAbort: true,
+    requestTimeout: 60000,
+    connectionTimeout: 60000,
+    pool: {
+      max: 10,
+      min: 0,
+      idleTimeoutMillis: 30000
     }
-    return response.json();
   }
+};
 
-  async get(endpoint: string) {
-    console.log(`API GET: ${API_BASE_URL}${endpoint}`);
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      headers: this.getHeaders(),
-      credentials: 'include'
+let pool = null;
+let isConnected = false;
+let mockMode = false;
+
+// Mock data for fallback
+const mockUsers = [
+  { id: 1, username: 'admin', password: 'admin', email: 'admin@datacenter.com', role: 'admin' },
+  { id: 2, username: 'manager', password: 'manager', email: 'manager@datacenter.com', role: 'manager' },
+  { id: 3, username: 'operator', password: 'operator', email: 'operator@datacenter.com', role: 'operator' },
+  { id: 4, username: 'viewer', password: 'viewer', email: 'viewer@datacenter.com', role: 'viewer' }
+];
+
+const mockProjects = [
+  { id: 1, ritm_code: 'RITM0012345', project_name: 'Expansión Datacenter Fase 1', client: 'Telefónica España', datacenter: 'Madrid DC-1', status: 'active', created_at: new Date() },
+  { id: 2, ritm_code: 'RITM0012346', project_name: 'Renovación Servidores 2024', client: 'BBVA', datacenter: 'Barcelona DC-2', status: 'active', created_at: new Date() }
+];
+
+export const connectDatabase = async () => {
+  try {
+    logger.info('🔄 Attempting to connect to SQL Server database...', {
+      server: config.server,
+      database: config.database,
+      user: config.user,
+      port: config.port
     });
-    return this.handleResponse(response);
+
+    if (pool) {
+      await pool.close();
+    }
+
+    pool = await sql.connect(config);
+    
+    // Test connection with a simple query
+    await pool.request().query('SELECT 1 as test');
+    
+    isConnected = true;
+    mockMode = false;
+    logger.info('✅ Successfully connected to SQL Server database');
+    
+    return pool;
+  } catch (error) {
+    isConnected = false;
+    mockMode = true;
+    
+    // Detailed error logging
+    const errorInfo = {
+      message: error.message,
+      code: error.code,
+      server: config.server,
+      database: config.database,
+      user: config.user,
+      port: config.port
+    };
+
+    if (error.code === 'ECONNREFUSED') {
+      logger.warn('⚠ SQL Server connection refused - Server may not be running', errorInfo);
+      logger.info('💡 Solution: Start SQL Server service or check server address');
+    } else if (error.code === 'ENOTFOUND') {
+      logger.warn('⚠ SQL Server host not found - Check server name/IP', errorInfo);
+    } else if (error.code === 'ELOGIN') {
+      logger.warn('⚠ SQL Server login failed - Check credentials', errorInfo);
+    } else {
+      logger.warn('⚠ Failed to connect to SQL Server database', errorInfo);
+    }
+    
+    logger.info('🔄 Switching to mock mode for API responses');
+    throw error;
   }
+};
 
-  async post(endpoint: string, data: any) {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: 'POST',
-      headers: this.getHeaders(),
-      body: JSON.stringify(data),
-      credentials: 'include'
-    });
-    return this.handleResponse(response);
+export const executeQuery = async (query, params = []) => {
+  if (!mockMode && pool && isConnected) {
+    try {
+      const request = pool.request();
+      
+      // Add parameters
+      if (params && params.length > 0) {
+        params.forEach((param, index) => {
+          request.input(`param${index}`, param);
+        });
+      }
+      
+      const result = await request.query(query);
+      return result.recordset || [];
+    } catch (error) {
+      logger.error('Database query failed:', { query, error: error.message });
+      
+      // Fall back to mock mode for this query
+      return handleMockQuery(query, params);
+    }
   }
+  
+  // Use mock data
+  return handleMockQuery(query, params);
+};
 
-  async put(endpoint: string, data: any) {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: 'PUT',
-      headers: this.getHeaders(),
-      body: JSON.stringify(data),
-      credentials: 'include'
-    });
-    return this.handleResponse(response);
+const handleMockQuery = (query, params) => {
+  const queryLower = query.toLowerCase();
+  
+  // Reduce logging in mock mode - only log 10% of requests
+  if (Math.random() < 0.1) {
+    logger.debug('Using mock data for query', { query: query.substring(0, 100) + '...' });
   }
-
-  async delete(endpoint: string) {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: 'DELETE',
-      headers: this.getHeaders(),
-      credentials: 'include'
-    });
-    return this.handleResponse(response);
+  
+  // Mock responses based on query patterns
+  if (queryLower.includes('users') && queryLower.includes('select')) {
+    if (params && params[0]) {
+      // Find user by username
+      return mockUsers.filter(u => u.username === params[0]);
+    }
+    return mockUsers;
   }
-}
-
-const apiService = new ApiService();
-
-export const authAPI = {
-  login: (username: string, password: string) => 
-    apiService.post('/auth/login', { username, password }),
-  logout: () => 
-    apiService.post('/auth/logout', {}),
-  verify: () => 
-    apiService.get('/auth/verify')
+  
+  if (queryLower.includes('projects') && queryLower.includes('select')) {
+    return mockProjects;
+  }
+  
+  if (queryLower.includes('insert') && queryLower.includes('output inserted')) {
+    // Return mock inserted record
+    return [{ id: Math.floor(Math.random() * 1000), ...Object.fromEntries(params.map((p, i) => [`field${i}`, p])) }];
+  }
+  
+  // Default empty response
+  return [];
 };
 
-export const projectsAPI = {
-  getAll: () => apiService.get('/projects'),
-  getById: (id: string) => apiService.get(`/projects/${id}`),
-  create: (data: any) => apiService.post('/projects', data),
-  update: (id: string, data: any) => apiService.put(`/projects/${id}`, data),
-  delete: (id: string) => apiService.delete(`/projects/${id}`)
+export const closeDatabase = async () => {
+  try {
+    if (pool) {
+      await pool.close();
+      pool = null;
+      isConnected = false;
+      logger.info('Database connection closed');
+    }
+  } catch (error) {
+    logger.error('Error closing database connection:', error);
+  }
 };
 
-export const ordersAPI = {
-  getByProject: (projectId: string) => apiService.get(`/orders/project/${projectId}`),
-  getAll: () => apiService.get('/orders'),
-  getById: (id: string) => apiService.get(`/orders/${id}`),
-  create: (data: any) => apiService.post('/orders', data),
-  update: (id: string, data: any) => apiService.put(`/orders/${id}`, data)
-};
+// Export connection status
+export const getDatabaseStatus = () => ({
+  connected: isConnected,
+  mockMode: mockMode,
+  server: config.server,
+  database: config.database
+});
 
-export const deliveryNotesAPI = {
-  getAll: () => apiService.get('/delivery-notes'),
-  getByOrder: (orderId: string) => apiService.get(`/delivery-notes/order/${orderId}`),
-  getById: (id: string) => apiService.get(`/delivery-notes/${id}`),
-  create: (data: any) => apiService.post('/delivery-notes', data),
-  update: (id: string, data: any) => apiService.put(`/delivery-notes/${id}`, data)
-};
-
-export const equipmentAPI = {
-  getByDeliveryNote: (deliveryNoteId: string) => apiService.get(`/equipment/delivery-note/${deliveryNoteId}`),
-  getAll: () => apiService.get('/equipment'),
-  create: (data: any) => apiService.post('/equipment', data),
-  update: (id: string, data: any) => apiService.put(`/equipment/${id}`, data)
-};
-
-export const monitoringAPI = {
-  getStatus: () => apiService.get('/monitoring/status'),
-  getLogs: (params?: any) => apiService.get(`/monitoring/logs${params ? `?${new URLSearchParams(params).toString()}` : ''}`),
-  getMetrics: () => apiService.get('/monitoring/metrics')
-};
+export default { connectDatabase, executeQuery, closeDatabase, getDatabaseStatus };

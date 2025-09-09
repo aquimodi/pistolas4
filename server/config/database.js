@@ -97,22 +97,40 @@ function getMockData(query) {
   
   if (queryLower.includes('projects')) {
     return [
-      { id: 1, name: 'DC Expansion Phase 1', description: 'Datacenter expansion project', status: 'active', created_at: new Date() },
-      { id: 2, name: 'Server Refresh 2024', description: 'Annual server hardware refresh', status: 'active', created_at: new Date() }
+      { 
+        id: 1, 
+        ritm_code: 'RITM0012345', 
+        project_name: 'Expansión Datacenter Fase 1', 
+        client: 'Telefónica España', 
+        datacenter: 'Madrid DC-1', 
+        delivery_date: '2024-06-30', 
+        status: 'active', 
+        created_at: new Date() 
+      },
+      { 
+        id: 2, 
+        ritm_code: 'RITM0012346', 
+        project_name: 'Renovación Servidores 2024', 
+        client: 'BBVA', 
+        datacenter: 'Barcelona DC-2', 
+        delivery_date: '2024-05-15', 
+        status: 'active', 
+        created_at: new Date() 
+      }
     ];
   }
   
   if (queryLower.includes('orders')) {
     return [
-      { id: 1, project_id: 1, order_number: 'ORD-2024-001', vendor: 'Dell Technologies', status: 'pending', created_at: new Date() },
-      { id: 2, project_id: 1, order_number: 'ORD-2024-002', vendor: 'HPE', status: 'received', created_at: new Date() }
+      { id: 1, project_id: 1, order_code: 'PED-2024-001', equipment_count: 10, vendor: 'Dell Technologies', status: 'received', created_at: new Date() },
+      { id: 2, project_id: 1, order_code: 'PED-2024-002', equipment_count: 5, vendor: 'HPE', status: 'pending', created_at: new Date() }
     ];
   }
   
   if (queryLower.includes('delivery_notes')) {
     return [
-      { id: 1, order_id: 1, delivery_note_number: 'DN-2024-001', delivery_date: new Date(), status: 'received', created_at: new Date() },
-      { id: 2, order_id: 2, delivery_note_number: 'DN-2024-002', delivery_date: new Date(), status: 'processing', created_at: new Date() }
+      { id: 1, order_id: 1, delivery_code: 'ALB-2024-001', estimated_equipment_count: 5, delivery_date: new Date(), status: 'completed', created_at: new Date() },
+      { id: 2, order_id: 2, delivery_code: 'ALB-2024-002', estimated_equipment_count: 5, delivery_date: new Date(), status: 'processing', created_at: new Date() }
     ];
   }
   

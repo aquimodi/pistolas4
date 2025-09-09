@@ -5,12 +5,11 @@ import { authorizeRole } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Get equipment by delivery note
 router.get('/delivery-note/:deliveryNoteId', async (req, res) => {
   try {
     const { deliveryNoteId } = req.params;
     const equipment = await executeQuery(
-      'SELECT e.*, dn.delivery_note_number FROM equipment e LEFT JOIN delivery_notes dn ON e.delivery_note_id = dn.id WHERE e.delivery_note_id = @param0 ORDER BY e.created_at DESC',
+      'SELECT e.*, dn.delivery_code FROM equipment e LEFT JOIN delivery_notes dn ON e.delivery_note_id = dn.id WHERE e.delivery_note_id = @param0 ORDER BY e.created_at DESC',
       [deliveryNoteId]
     );
     
@@ -22,11 +21,10 @@ router.get('/delivery-note/:deliveryNoteId', async (req, res) => {
   }
 });
 
-// Get all equipment
 router.get('/', async (req, res) => {
   try {
     const equipment = await executeQuery(
-      'SELECT e.*, dn.delivery_note_number, o.order_number, p.name as project_name FROM equipment e LEFT JOIN delivery_notes dn ON e.delivery_note_id = dn.id LEFT JOIN orders o ON dn.order_id = o.id LEFT JOIN projects p ON o.project_id = p.id ORDER BY e.created_at DESC'
+      'SELECT e.*, dn.delivery_code, o.order_code, p.project_name FROM equipment e LEFT JOIN delivery_notes dn ON e.delivery_note_id = dn.id LEFT JOIN orders o ON dn.order_id = o.id LEFT JOIN projects p ON o.project_id = p.id ORDER BY e.created_at DESC'
     );
     res.json(equipment);
   } catch (error) {
@@ -35,7 +33,6 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Create equipment
 router.post('/', authorizeRole(['admin', 'manager', 'operator']), async (req, res) => {
   try {
     const { 
@@ -46,7 +43,7 @@ router.post('/', authorizeRole(['admin', 'manager', 'operator']), async (req, re
       model, 
       category, 
       specifications, 
-      condition, 
+      condition_status, 
       location, 
       status = 'received' 
     } = req.body;
@@ -57,7 +54,7 @@ router.post('/', authorizeRole(['admin', 'manager', 'operator']), async (req, re
 
     const result = await executeQuery(
       'INSERT INTO equipment (delivery_note_id, serial_number, asset_tag, manufacturer, model, category, specifications, condition_status, location, status, created_by, created_at) OUTPUT INSERTED.* VALUES (@param0, @param1, @param2, @param3, @param4, @param5, @param6, @param7, @param8, @param9, @param10, GETDATE())',
-      [delivery_note_id, serial_number, asset_tag, manufacturer, model, category, specifications, condition, location, status, req.user.id]
+      [delivery_note_id, serial_number, asset_tag, manufacturer, model, category, specifications, condition_status, location, status, req.user.id]
     );
 
     logger.info(`Equipment created: ${serial_number} by ${req.user.username}`);
@@ -68,7 +65,6 @@ router.post('/', authorizeRole(['admin', 'manager', 'operator']), async (req, re
   }
 });
 
-// Update equipment
 router.put('/:id', authorizeRole(['admin', 'manager', 'operator']), async (req, res) => {
   try {
     const { id } = req.params;
@@ -79,14 +75,14 @@ router.put('/:id', authorizeRole(['admin', 'manager', 'operator']), async (req, 
       model, 
       category, 
       specifications, 
-      condition, 
+      condition_status, 
       location, 
       status 
     } = req.body;
 
     const result = await executeQuery(
       'UPDATE equipment SET serial_number = @param0, asset_tag = @param1, manufacturer = @param2, model = @param3, category = @param4, specifications = @param5, condition_status = @param6, location = @param7, status = @param8, updated_at = GETDATE() OUTPUT INSERTED.* WHERE id = @param9',
-      [serial_number, asset_tag, manufacturer, model, category, specifications, condition, location, status, id]
+      [serial_number, asset_tag, manufacturer, model, category, specifications, condition_status, location, status, id]
     );
 
     if (result.length === 0) {

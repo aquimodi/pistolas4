@@ -89,8 +89,12 @@ const OrdersPage = () => {
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">{project?.name}</h1>
-            <p className="mt-1 text-gray-600">{project?.description}</p>
+            <h1 className="text-2xl font-bold text-gray-900">{project?.project_name}</h1>
+            <div className="mt-1 text-gray-600 space-y-1">
+              <p><strong>RITM:</strong> {project?.ritm_code}</p>
+              <p><strong>Cliente:</strong> {project?.client}</p>
+              <p><strong>Datacenter:</strong> {project?.datacenter}</p>
+            </div>
             <div className="mt-2">
               <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(project?.status)}`}>
                 {project?.status?.replace('_', ' ') || 'active'}
@@ -102,7 +106,7 @@ const OrdersPage = () => {
             className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 transition-colors"
           >
             <Plus className="h-4 w-4 mr-2" />
-            New Order
+            Nuevo Pedido
           </button>
         </div>
       </div>
@@ -110,7 +114,7 @@ const OrdersPage = () => {
       {/* Orders List */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-medium text-gray-900">Orders</h2>
+          <h2 className="text-lg font-medium text-gray-900">Pedidos</h2>
         </div>
         
         {orders.length > 0 ? (
@@ -122,19 +126,22 @@ const OrdersPage = () => {
                     <div className="flex items-center space-x-3">
                       <FileText className="h-5 w-5 text-gray-600" />
                       <div>
-                        <h3 className="text-sm font-medium text-gray-900">{order.order_number}</h3>
-                        <p className="text-sm text-gray-600">Vendor: {order.vendor}</p>
+                        <h3 className="text-sm font-medium text-gray-900">{order.order_code}</h3>
+                        <p className="text-sm text-gray-600">
+                          {order.equipment_count} equipos
+                          {order.vendor && ` - ${order.vendor}`}
+                        </p>
                       </div>
                     </div>
                     <div className="mt-2 flex items-center space-x-4 text-xs text-gray-500">
                       <div className="flex items-center">
                         <Calendar className="h-4 w-4 mr-1" />
-                        Created {new Date(order.created_at).toLocaleDateString()}
+                        Creado {new Date(order.created_at).toLocaleDateString()}
                       </div>
                       {order.expected_delivery_date && (
                         <div className="flex items-center">
                           <Truck className="h-4 w-4 mr-1" />
-                          Expected {new Date(order.expected_delivery_date).toLocaleDateString()}
+                          Esperado {new Date(order.expected_delivery_date).toLocaleDateString()}
                         </div>
                       )}
                     </div>
@@ -148,13 +155,13 @@ const OrdersPage = () => {
                       className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors"
                     >
                       <Package className="h-3 w-3 mr-1" />
-                      Delivery Notes
+                      Albaranes
                     </Link>
                     <button
                       onClick={() => handleEditOrder(order)}
                       className="text-blue-600 hover:text-blue-700 text-sm font-medium transition-colors"
                     >
-                      Edit
+                      Editar
                     </button>
                   </div>
                 </div>

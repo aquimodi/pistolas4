@@ -100,7 +100,7 @@ const ProjectsPage = () => {
                 <div className="flex items-center">
                   <Server className="h-8 w-8 text-blue-600 mr-3" />
                   <div>
-                    <h3 className="text-lg font-medium text-gray-900">{project.name}</h3>
+                    <h3 className="text-lg font-medium text-gray-900">{project.project_name}</h3>
                     <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(project.status)}`}>
                       {project.status?.replace('_', ' ') || 'active'}
                     </span>
@@ -108,7 +108,14 @@ const ProjectsPage = () => {
                 </div>
               </div>
               
-              <p className="text-gray-600 text-sm mb-4 line-clamp-2">{project.description}</p>
+              <div className="text-gray-600 text-sm mb-4 space-y-1">
+                <p><strong>RITM:</strong> {project.ritm_code}</p>
+                <p><strong>Cliente:</strong> {project.client}</p>
+                <p><strong>Datacenter:</strong> {project.datacenter}</p>
+                {project.delivery_date && (
+                  <p><strong>Entrega:</strong> {new Date(project.delivery_date).toLocaleDateString()}</p>
+                )}
+              </div>
               
               <div className="flex items-center text-xs text-gray-500 mb-4">
                 <Calendar className="h-4 w-4 mr-1" />
@@ -120,7 +127,7 @@ const ProjectsPage = () => {
                   to={`/projects/${project.id}/orders`}
                   className="flex-1 inline-flex items-center justify-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors"
                 >
-                  View Orders
+                  Ver Pedidos
                 </Link>
                 {(user?.role === 'admin' || user?.role === 'manager') && (
                   <button

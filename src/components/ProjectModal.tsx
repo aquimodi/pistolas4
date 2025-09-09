@@ -14,8 +14,13 @@ interface ProjectModalProps {
 const ProjectModal: React.FC<ProjectModalProps> = ({ project, isOpen, onClose, onSave }) => {
   const { addNotification } = useNotification();
   const [formData, setFormData] = useState({
-    name: '',
-    description: '',
+    ritm_code: '',
+    project_name: '',
+    client: '',
+    datacenter: '',
+    delivery_date: '',
+    teams_folder_url: '',
+    excel_file_path: '',
     status: 'active'
   });
   const [isLoading, setIsLoading] = useState(false);
@@ -23,14 +28,24 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, isOpen, onClose, o
   useEffect(() => {
     if (project) {
       setFormData({
-        name: project.name || '',
-        description: project.description || '',
+        ritm_code: project.ritm_code || '',
+        project_name: project.project_name || '',
+        client: project.client || '',
+        datacenter: project.datacenter || '',
+        delivery_date: project.delivery_date ? project.delivery_date.split('T')[0] : '',
+        teams_folder_url: project.teams_folder_url || '',
+        excel_file_path: project.excel_file_path || '',
         status: project.status || 'active'
       });
     } else {
       setFormData({
-        name: '',
-        description: '',
+        ritm_code: '',
+        project_name: '',
+        client: '',
+        datacenter: '',
+        delivery_date: '',
+        teams_folder_url: '',
+        excel_file_path: '',
         status: 'active'
       });
     }
@@ -88,28 +103,96 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, isOpen, onClose, o
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Project Name *
+              Código RITM *
             </label>
             <input
               type="text"
               required
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-              value={formData.name}
-              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-              placeholder="Enter project name"
+              value={formData.ritm_code}
+              onChange={(e) => setFormData(prev => ({ ...prev, ritm_code: e.target.value }))}
+              placeholder="ej. RITM0012345"
             />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Description
+              Nombre del Proyecto *
             </label>
-            <textarea
-              rows={3}
+            <input
+              type="text"
+              required
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-              value={formData.description}
-              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-              placeholder="Project description..."
+              value={formData.project_name}
+              onChange={(e) => setFormData(prev => ({ ...prev, project_name: e.target.value }))}
+              placeholder="ej. Expansión Datacenter Fase 1"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Cliente *
+              </label>
+              <input
+                type="text"
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                value={formData.client}
+                onChange={(e) => setFormData(prev => ({ ...prev, client: e.target.value }))}
+                placeholder="ej. Telefónica España"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Datacenter *
+              </label>
+              <input
+                type="text"
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                value={formData.datacenter}
+                onChange={(e) => setFormData(prev => ({ ...prev, datacenter: e.target.value }))}
+                placeholder="ej. Madrid DC-1"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Fecha de Entrega
+            </label>
+            <input
+              type="date"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              value={formData.delivery_date}
+              onChange={(e) => setFormData(prev => ({ ...prev, delivery_date: e.target.value }))}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              URL Carpeta Teams
+            </label>
+            <input
+              type="text"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              value={formData.teams_folder_url}
+              onChange={(e) => setFormData(prev => ({ ...prev, teams_folder_url: e.target.value }))}
+              placeholder="https://teams.microsoft.com/..."
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Archivo Excel
+            </label>
+            <input
+              type="text"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              value={formData.excel_file_path}
+              onChange={(e) => setFormData(prev => ({ ...prev, excel_file_path: e.target.value }))}
+              placeholder="/uploads/projects/RITM0012345_equipment_list.xlsx"
             />
           </div>
 

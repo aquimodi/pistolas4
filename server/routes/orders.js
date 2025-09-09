@@ -5,12 +5,11 @@ import { authorizeRole } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Get orders by project
 router.get('/project/:projectId', async (req, res) => {
   try {
     const { projectId } = req.params;
     const orders = await executeQuery(
-      'SELECT o.*, p.name as project_name FROM orders o LEFT JOIN projects p ON o.project_id = p.id WHERE o.project_id = @param0 ORDER BY o.created_at DESC',
+      'SELECT o.*, p.project_name FROM orders o LEFT JOIN projects p ON o.project_id = p.id WHERE o.project_id = @param0 ORDER BY o.created_at DESC',
       [projectId]
     );
     
@@ -22,11 +21,10 @@ router.get('/project/:projectId', async (req, res) => {
   }
 });
 
-// Get all orders
 router.get('/', async (req, res) => {
   try {
     const orders = await executeQuery(
-      'SELECT o.*, p.name as project_name FROM orders o LEFT JOIN projects p ON o.project_id = p.id ORDER BY o.created_at DESC'
+      'SELECT o.*, p.project_name FROM orders o LEFT JOIN projects p ON o.project_id = p.id ORDER BY o.created_at DESC'
     );
     res.json(orders);
   } catch (error) {
@@ -35,21 +33,28 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Create order
 router.post('/', authorizeRole(['admin', 'manager', 'operator']), async (req, res) => {
   try {
-    const { project_id, order_number, vendor, description, expected_delivery_date, status = 'pending' } = req.body;
+    const { 
+      project_id, 
+      order_code, 
+      equipment_count, 
+      vendor, 
+      description, 
+      expected_delivery_date, 
+      status = 'pending' 
+    } = req.body;
 
-    if (!project_id || !order_number || !vendor) {
-      return res.status(400).json({ error: 'Project ID, order number, and vendor are required' });
+    if (!project_id || !order_code || !equipment_count) {
+      return res.status(400).json({ error: 'Project ID, order code, and equipment count are required' });
     }
 
     const result = await executeQuery(
-      'INSERT INTO orders (project_id, order_number, vendor, description, expected_delivery_date, status, created_by, created_at) OUTPUT INSERTED.* VALUES (@param0, @param1, @param2, @param3, @param4, @param5, @param6, GETDATE())',
-      [project_id, order_number, vendor, description, expected_delivery_date, status, req.user.id]
+      'INSERT INTO orders (project_id, order_code, equipment_count, vendor, description, expected_delivery_date, status, created_by, created_at) OUTPUT INSERTED.* VALUES (@param0, @param1, @param2, @param3, @param4, @param5, @param6, @param7, GETDATE())',
+      [project_id, order_code, equipment_count, vendor, description, expected_delivery_date, status, req.user.id]
     );
 
-    logger.info(`Order created: ${order_number} by ${req.user.username}`);
+    logger.info(`Order created: ${order_code} by ${req.user.username}`);
     res.status(201).json(result[0]);
   } catch (error) {
     logger.error('Error creating order:', error);
@@ -57,15 +62,14 @@ router.post('/', authorizeRole(['admin', 'manager', 'operator']), async (req, re
   }
 });
 
-// Update order
 router.put('/:id', authorizeRole(['admin', 'manager', 'operator']), async (req, res) => {
   try {
     const { id } = req.params;
-    const { order_number, vendor, description, expected_delivery_date, status } = req.body;
+    const { order_code, equipment_count, vendor, description, expected_delivery_date, status } = req.body;
 
     const result = await executeQuery(
-      'UPDATE orders SET order_number = @param0, vendor = @param1, description = @param2, expected_delivery_date = @param3, status = @param4, updated_at = GETDATE() OUTPUT INSERTED.* WHERE id = @param5',
-      [order_number, vendor, description, expected_delivery_date, status, id]
+      'UPDATE orders SET order_code = @param0, equipment_count = @param1, vendor = @param2, description = @param3, expected_delivery_date = @param4, status = @param5, updated_at = GETDATE() OUTPUT INSERTED.* WHERE id = @param6',
+      [order_code, equipment_count, vendor, description, expected_delivery_date, status, id]
     );
 
     if (result.length === 0) {

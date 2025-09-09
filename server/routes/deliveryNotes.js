@@ -5,12 +5,11 @@ import { authorizeRole } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Get delivery notes by order
 router.get('/order/:orderId', async (req, res) => {
   try {
     const { orderId } = req.params;
     const deliveryNotes = await executeQuery(
-      'SELECT dn.*, o.order_number FROM delivery_notes dn LEFT JOIN orders o ON dn.order_id = o.id WHERE dn.order_id = @param0 ORDER BY dn.created_at DESC',
+      'SELECT dn.*, o.order_code FROM delivery_notes dn LEFT JOIN orders o ON dn.order_id = o.id WHERE dn.order_id = @param0 ORDER BY dn.created_at DESC',
       [orderId]
     );
     
@@ -22,21 +21,30 @@ router.get('/order/:orderId', async (req, res) => {
   }
 });
 
-// Create delivery note
 router.post('/', authorizeRole(['admin', 'manager', 'operator']), async (req, res) => {
   try {
-    const { order_id, delivery_note_number, delivery_date, carrier, tracking_number, notes, status = 'received' } = req.body;
+    const { 
+      order_id, 
+      delivery_code, 
+      estimated_equipment_count, 
+      delivery_date, 
+      carrier, 
+      tracking_number, 
+      attached_document_path, 
+      notes, 
+      status = 'received' 
+    } = req.body;
 
-    if (!order_id || !delivery_note_number) {
-      return res.status(400).json({ error: 'Order ID and delivery note number are required' });
+    if (!order_id || !delivery_code || !estimated_equipment_count) {
+      return res.status(400).json({ error: 'Order ID, delivery code, and estimated equipment count are required' });
     }
 
     const result = await executeQuery(
-      'INSERT INTO delivery_notes (order_id, delivery_note_number, delivery_date, carrier, tracking_number, notes, status, created_by, created_at) OUTPUT INSERTED.* VALUES (@param0, @param1, @param2, @param3, @param4, @param5, @param6, @param7, GETDATE())',
-      [order_id, delivery_note_number, delivery_date, carrier, tracking_number, notes, status, req.user.id]
+      'INSERT INTO delivery_notes (order_id, delivery_code, estimated_equipment_count, delivery_date, carrier, tracking_number, attached_document_path, notes, status, created_by, created_at) OUTPUT INSERTED.* VALUES (@param0, @param1, @param2, @param3, @param4, @param5, @param6, @param7, @param8, @param9, GETDATE())',
+      [order_id, delivery_code, estimated_equipment_count, delivery_date, carrier, tracking_number, attached_document_path, notes, status, req.user.id]
     );
 
-    logger.info(`Delivery note created: ${delivery_note_number} by ${req.user.username}`);
+    logger.info(`Delivery note created: ${delivery_code} by ${req.user.username}`);
     res.status(201).json(result[0]);
   } catch (error) {
     logger.error('Error creating delivery note:', error);
@@ -44,15 +52,23 @@ router.post('/', authorizeRole(['admin', 'manager', 'operator']), async (req, re
   }
 });
 
-// Update delivery note
 router.put('/:id', authorizeRole(['admin', 'manager', 'operator']), async (req, res) => {
   try {
     const { id } = req.params;
-    const { delivery_note_number, delivery_date, carrier, tracking_number, notes, status } = req.body;
+    const { 
+      delivery_code, 
+      estimated_equipment_count, 
+      delivery_date, 
+      carrier, 
+      tracking_number, 
+      attached_document_path, 
+      notes, 
+      status 
+    } = req.body;
 
     const result = await executeQuery(
-      'UPDATE delivery_notes SET delivery_note_number = @param0, delivery_date = @param1, carrier = @param2, tracking_number = @param3, notes = @param4, status = @param5, updated_at = GETDATE() OUTPUT INSERTED.* WHERE id = @param6',
-      [delivery_note_number, delivery_date, carrier, tracking_number, notes, status, id]
+      'UPDATE delivery_notes SET delivery_code = @param0, estimated_equipment_count = @param1, delivery_date = @param2, carrier = @param3, tracking_number = @param4, attached_document_path = @param5, notes = @param6, status = @param7, updated_at = GETDATE() OUTPUT INSERTED.* WHERE id = @param8',
+      [delivery_code, estimated_equipment_count, delivery_date, carrier, tracking_number, attached_document_path, notes, status, id]
     );
 
     if (result.length === 0) {

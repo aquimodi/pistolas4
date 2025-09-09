@@ -47,7 +47,6 @@ export async function connectDB() {
     return pool;
   } catch (error) {
     logger.error('Database connection failed:', error);
-    }
     throw error;
   }
 }

@@ -82,9 +82,13 @@ function requireRole(roles) {
   };
 }
 
+// Alias for backward compatibility
+const authorizeRole = requireRole;
+
 export {
   authenticateToken,
   generateToken,
   validateUser,
-  requireRole
+  requireRole,
+  authorizeRole
 };

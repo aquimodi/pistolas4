@@ -1,4 +1,4 @@
-const jwt = require('jsonwebtoken');
+import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'datacenter-equipment-secret-key';
 
@@ -82,7 +82,7 @@ function requireRole(roles) {
   };
 }
 
-module.exports = {
+export {
   authenticateToken,
   generateToken,
   validateUser,

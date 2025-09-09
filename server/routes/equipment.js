@@ -1,7 +1,7 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const { executeQuery } = require('../config/database');
-const { authenticateToken } = require('../middleware/auth');
+import { executeQuery } from '../config/database.js';
+import { authenticateToken } from '../middleware/auth.js';
 
 // Get all equipment
 router.get('/', authenticateToken, async (req, res) => {
@@ -183,4 +183,4 @@ router.delete('/:id', authenticateToken, async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

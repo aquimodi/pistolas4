@@ -1,4 +1,4 @@
-const sql = require('mssql');
+import sql from 'mssql';
 
 const config = {
   user: process.env.DB_USER || 'datacenter_user',
@@ -159,7 +159,7 @@ async function closeDatabase() {
   }
 }
 
-module.exports = {
+export {
   connectDatabase,
   executeQuery,
   closeDatabase,

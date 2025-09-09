@@ -1,217 +1,129 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { Plus, FileText, Calendar, Package, Truck, Building } from 'lucide-react';
-import { deliveryNotesAPI, ordersAPI } from '../services/api';
-import { useNotification } from '../contexts/NotificationContext';
-import { useAuth } from '../contexts/AuthContext';
-import Breadcrumb from '../components/Breadcrumb';
-import LoadingSpinner from '../components/LoadingSpinner';
-import DeliveryNoteModal from '../components/DeliveryNoteModal';
+// API base URL - uses proxy configured in vite.config.ts for development
+// and nginx proxy for production
+const API_BASE_URL = '/api';
 
-const DeliveryNotesPage = () => {
-  const { orderId } = useParams();
-  const { user } = useAuth();
-  const { addNotification } = useNotification();
-  const [order, setOrder] = useState<any>(null);
-  const [deliveryNotes, setDeliveryNotes] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingDeliveryNote, setEditingDeliveryNote] = useState(null);
-
-  const fetchData = async () => {
-    try {
-      setIsLoading(true);
-      if (orderId) {
-        // Vista específica de un pedido
-        const deliveryNotesData = await deliveryNotesAPI.getByOrder(orderId);
-        setDeliveryNotes(deliveryNotesData);
-        
-        // Mock order data for breadcrumb
-        setOrder({ 
-          id: orderId, 
-          project_id: '1',
-          order_number: `ORD-2024-${orderId.padStart(3, '0')}`,
-          project_name: 'DC Expansion Phase 1'
-        });
-      } else {
-        // Vista general de TODOS los delivery notes desde la base de datos
-        const deliveryNotesData = await deliveryNotesAPI.getAll();
-        setDeliveryNotes(deliveryNotesData);
-        setOrder(null);
-      }
-    } catch (error) {
-      console.error('Error fetching delivery notes:', error);
-      addNotification({
-        type: 'error',
-        title: 'Error',
-        message: 'Failed to fetch delivery notes'
-      });
-    } finally {
-      setIsLoading(false);
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, [orderId]);
-
-  const handleCreateDeliveryNote = () => {
-    setEditingDeliveryNote(null);
-    setIsModalOpen(true);
-  };
-
-  const handleEditDeliveryNote = (note: any) => {
-    setEditingDeliveryNote(note);
-    setIsModalOpen(true);
-  };
-
-  const handleDeliveryNoteSaved = () => {
-    fetchData();
-    setIsModalOpen(false);
-    setEditingDeliveryNote(null);
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'received': return 'bg-green-100 text-green-800';
-      case 'processing': return 'bg-blue-100 text-blue-800';
-      case 'completed': return 'bg-purple-100 text-purple-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <div className="p-6 flex justify-center">
-        <LoadingSpinner size="large" />
-      </div>
-    );
+class ApiService {
+  private getHeaders() {
+    return {
+      'Content-Type': 'application/json',
+    };
   }
 
-  return (
-    <div className="p-6 space-y-6">
-      {/* Breadcrumb */}
-      <Breadcrumb items={[
-        ...(orderId ? [
-          { label: 'Projects', href: '/projects' },
-          { label: order?.project_name || 'Project', href: '/projects' },
-          { label: 'Orders', href: `/projects/${order?.project_id}/orders` },
-          { label: order?.order_number || 'Order', href: '/orders' },
-          { label: 'Delivery Notes', current: true }
-        ] : [
-          { label: 'Delivery Notes', current: true }
-        ])
-      ]} />
+  private async handleResponse(response: Response) {
+    if (!response.ok) {
+      // Manejar error 401 sin redirección automática
+      if (response.status === 401) {
+        // Solo redirigir si no estamos ya en la página de login
+        if (window.location.pathname !== '/login') {
+          // Usar setTimeout para evitar bucles infinitos
+          setTimeout(() => {
+            window.location.href = '/login';
+          }, 100);
+        }
+        throw new Error('Authentication required');
+      }
+      
+      if (response.status === 429) {
+        throw new Error('Too many requests. Please wait and try again.');
+      }
+      
+      if (response.status === 500) {
+        throw new Error('Server error. Please try again later.');
+      }
+      
+      let error;
+      try {
+        error = await response.json();
+      } catch {
+        error = { error: response.status === 404 ? 'Resource not found' : 'Network error' };
+      }
+      throw new Error(error.error || 'Request failed');
+    }
+    return response.json();
+  }
 
-      {/* Header */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">
-              {orderId ? `Delivery Notes - ${order?.order_number}` : 'All Delivery Notes'}
-            </h1>
-            <p className="mt-1 text-gray-600">
-              {orderId ? `Order: ${order?.order_number}` : 'Complete overview of all delivery notes'}
-            </p>
-          </div>
-          {orderId && (user?.role === 'admin' || user?.role === 'manager' || user?.role === 'operator') && (
-            <button
-              onClick={handleCreateDeliveryNote}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 transition-colors"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Nuevo Albarán
-            </button>
-          )}
-        </div>
-      </div>
+  async get(endpoint: string) {
+    console.log(`API GET: ${API_BASE_URL}${endpoint}`);
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      headers: this.getHeaders(),
+      credentials: 'include'
+    });
+    return this.handleResponse(response);
+  }
 
-      {/* Delivery Notes List */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-medium text-gray-900">Delivery Notes</h2>
-        </div>
-        
-        {deliveryNotes.length > 0 ? (
-          <div className="divide-y divide-gray-200">
-            {deliveryNotes.map((note: any) => (
-              <div key={note.id} className="p-6 hover:bg-gray-50 transition-colors">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-3">
-                      <FileText className="h-5 w-5 text-gray-600" />
-                      <div>
-                        <h3 className="text-sm font-medium text-gray-900">{note.delivery_note_number}</h3>
-                        {note.carrier && (
-                          <p className="text-sm text-gray-600">Carrier: {note.carrier}</p>
-                        )}
-                        {!orderId && note.order_number && (
-                          <p className="text-xs text-gray-500">Order: {note.order_number}</p>
-                        )}
-                        {!orderId && note.project_name && (
-                          <p className="text-xs text-gray-500">Project: {note.project_name}</p>
-                        )}
-                      </div>
-                    </div>
-                    <div className="mt-2 flex items-center space-x-4 text-xs text-gray-500">
-                      <div className="flex items-center">
-                        <Calendar className="h-4 w-4 mr-1" />
-                        Delivered {new Date(note.delivery_date).toLocaleDateString()}
-                      </div>
-                      {note.tracking_number && (
-                        <div className="flex items-center">
-                          <Truck className="h-4 w-4 mr-1" />
-                          Tracking: {note.tracking_number}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(note.status)}`}>
-                      {note.status?.replace('_', ' ') || 'received'}
-                    </span>
-                    <Link
-                      to={`/delivery-notes/${note.id}/equipment`}
-                      className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors"
-                    >
-                      <Package className="h-3 w-3 mr-1" />
-                      Ver Equipos
-                    </Link>
-                    {orderId && (user?.role === 'admin' || user?.role === 'manager' || user?.role === 'operator') && (
-                      <button
-                        onClick={() => handleEditDeliveryNote(note)}
-                        className="text-blue-600 hover:text-blue-700 text-sm font-medium transition-colors"
-                      >
-                        Editar
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-12">
-            <FileText className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No delivery notes</h3>
-            <p className="mt-1 text-sm text-gray-500">Delivery notes will appear here when items are received.</p>
-          </div>
-        )}
-      </div>
+  async post(endpoint: string, data: any) {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify(data),
+      credentials: 'include'
+    });
+    return this.handleResponse(response);
+  }
 
-      {/* Delivery Note Modal */}
-      {isModalOpen && orderId && (
-        <DeliveryNoteModal
-          deliveryNote={editingDeliveryNote}
-          orderId={orderId!}
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-          onSave={handleDeliveryNoteSaved}
-        />
-      )}
-    </div>
-  );
+  async put(endpoint: string, data: any) {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: 'PUT',
+      headers: this.getHeaders(),
+      body: JSON.stringify(data),
+      credentials: 'include'
+    });
+    return this.handleResponse(response);
+  }
+
+  async delete(endpoint: string) {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: 'DELETE',
+      headers: this.getHeaders(),
+      credentials: 'include'
+    });
+    return this.handleResponse(response);
+  }
+}
+
+const apiService = new ApiService();
+
+export const authAPI = {
+  login: (username: string, password: string) => 
+    apiService.post('/auth/login', { username, password }),
+  logout: () => 
+    apiService.post('/auth/logout', {}),
+  verify: () => 
+    apiService.get('/auth/verify')
 };
 
-export default DeliveryNotesPage;
+export const projectsAPI = {
+  getAll: () => apiService.get('/projects'),
+  getById: (id: string) => apiService.get(`/projects/${id}`),
+  create: (data: any) => apiService.post('/projects', data),
+  update: (id: string, data: any) => apiService.put(`/projects/${id}`, data),
+  delete: (id: string) => apiService.delete(`/projects/${id}`)
+};
+
+export const ordersAPI = {
+  getByProject: (projectId: string) => apiService.get(`/orders/project/${projectId}`),
+  getAll: () => apiService.get('/orders'),
+  create: (data: any) => apiService.post('/orders', data),
+  update: (id: string, data: any) => apiService.put(`/orders/${id}`, data)
+};
+
+export const deliveryNotesAPI = {
+  getAll: () => apiService.get('/delivery-notes'),
+  getByOrder: (orderId: string) => apiService.get(`/delivery-notes/order/${orderId}`),
+  create: (data: any) => apiService.post('/delivery-notes', data),
+  update: (id: string, data: any) => apiService.put(`/delivery-notes/${id}`, data)
+};
+
+export const equipmentAPI = {
+  getByDeliveryNote: (deliveryNoteId: string) => apiService.get(`/equipment/delivery-note/${deliveryNoteId}`),
+                        <h3 className="text-sm font-medium text-gray-900">{note.delivery_code || note.delivery_note_number}</h3>
+                        <p className="text-sm text-gray-600">Equipos estimados: {note.estimated_equipment_count}</p>
+  create: (data: any) => apiService.post('/equipment', data),
+  update: (id: string, data: any) => apiService.put(`/equipment/${id}`, data)
+};
+
+export const monitoringAPI = {
+  getStatus: () => apiService.get('/monitoring/status'),
+  getLogs: (params?: any) => apiService.get(`/monitoring/logs${params ? `?${new URLSearchParams(params).toString()}` : ''}`),
+  getMetrics: () => apiService.get('/monitoring/metrics')
+};

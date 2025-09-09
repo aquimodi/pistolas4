@@ -1,225 +1,127 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { Plus, FileText, Calendar, Package, Truck, Building } from 'lucide-react';
-import { ordersAPI, projectsAPI } from '../services/api';
-import { useNotification } from '../contexts/NotificationContext';
-import { useAuth } from '../contexts/AuthContext';
-import Breadcrumb from '../components/Breadcrumb';
-import LoadingSpinner from '../components/LoadingSpinner';
-import OrderModal from '../components/OrderModal';
+// API base URL - uses proxy configured in vite.config.ts for development
+// and nginx proxy for production
+const API_BASE_URL = '/api';
 
-const OrdersPage = () => {
-  const { projectId } = useParams();
-  const { user } = useAuth();
-  const { addNotification } = useNotification();
-  const [project, setProject] = useState<any>(null);
-  const [orders, setOrders] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingOrder, setEditingOrder] = useState(null);
-
-  const fetchData = async () => {
-    try {
-      setIsLoading(true);
-      if (projectId) {
-        // Vista específica de proyecto
-        const [projectData, ordersData] = await Promise.all([
-          projectsAPI.getById(projectId),
-          ordersAPI.getByProject(projectId)
-        ]);
-        setProject(projectData);
-        setOrders(ordersData);
-      } else {
-        // Vista general de todos los orders
-        const ordersData = await ordersAPI.getAll();
-        setOrders(ordersData);
-        setProject(null);
-      }
-    } catch (error) {
-      console.error('Error fetching orders:', error);
-      addNotification({
-        type: 'error',
-        title: 'Error',
-        message: 'Failed to fetch orders'
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    let isMounted = true;
-    
-    const loadData = async () => {
-      await fetchData();
+class ApiService {
+  private getHeaders() {
+    return {
+      'Content-Type': 'application/json',
     };
-    
-    if (isMounted) {
-      loadData();
-    }
-    
-    return () => { isMounted = false; };
-  }, [projectId]);
-
-  const handleCreateOrder = () => {
-    setEditingOrder(null);
-    setIsModalOpen(true);
-  };
-
-  const handleEditOrder = (order: any) => {
-    setEditingOrder(order);
-    setIsModalOpen(true);
-  };
-
-  const handleOrderSaved = () => {
-    fetchData();
-    setIsModalOpen(false);
-    setEditingOrder(null);
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'received': return 'bg-green-100 text-green-800';
-      case 'partial': return 'bg-blue-100 text-blue-800';
-      case 'cancelled': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <div className="p-6 flex justify-center">
-        <LoadingSpinner size="large" />
-      </div>
-    );
   }
 
-  return (
-    <div className="p-6 space-y-6">
-      {/* Breadcrumb */}
-      <Breadcrumb items={[
-        ...(projectId ? [
-          { label: 'Projects', href: '/projects' },
-          { label: project?.name || 'Project', href: '/projects' },
-          { label: 'Orders', current: true }
-        ] : [
-          { label: 'Orders', current: true }
-        ])
-      ]} />
+  private async handleResponse(response: Response) {
+    if (!response.ok) {
+      // Manejar error 401 sin redirección automática
+      if (response.status === 401) {
+        // Solo redirigir si no estamos ya en la página de login
+        if (window.location.pathname !== '/login') {
+          // Usar setTimeout para evitar bucles infinitos
+          setTimeout(() => {
+            window.location.href = '/login';
+          }, 100);
+        }
+        throw new Error('Authentication required');
+      }
+      
+      if (response.status === 429) {
+        throw new Error('Too many requests. Please wait and try again.');
+      }
+      
+      if (response.status === 500) {
+        throw new Error('Server error. Please try again later.');
+      }
+      
+      let error;
+      try {
+        error = await response.json();
+      } catch {
+        error = { error: response.status === 404 ? 'Resource not found' : 'Network error' };
+      }
+      throw new Error(error.error || 'Request failed');
+    }
+    return response.json();
+  }
 
-      {/* Header */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">
-              {projectId ? `Orders - ${project?.name}` : 'All Orders'}
-            </h1>
-            <p className="mt-1 text-gray-600">
-              {projectId ? project?.description : 'Complete overview of all purchase orders'}
-            </p>
-            {project && (
-              <div className="mt-2">
-                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(project?.status)}`}>
-                  {project?.status?.replace('_', ' ') || 'active'}
-                </span>
-              </div>
-            )}
-          </div>
-          {projectId && (
-            <button
-              onClick={handleCreateOrder}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 transition-colors"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              New Order
-            </button>
-          )}
-        </div>
-      </div>
+  async get(endpoint: string) {
+    console.log(`API GET: ${API_BASE_URL}${endpoint}`);
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      headers: this.getHeaders(),
+      credentials: 'include'
+    });
+    return this.handleResponse(response);
+  }
 
-      {/* Orders List */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-medium text-gray-900">Orders</h2>
-        </div>
-        
-        {orders.length > 0 ? (
-          <div className="divide-y divide-gray-200">
-            {orders.map((order: any) => (
-              <div key={order.id} className="p-6 hover:bg-gray-50 transition-colors">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-3">
-                      <FileText className="h-5 w-5 text-gray-600" />
-                      <div>
-                        <h3 className="text-sm font-medium text-gray-900">{order.order_number}</h3>
-                        <h3 className="text-sm font-medium text-gray-900">{order.order_code}</h3>
-                        <p className="text-sm text-gray-600">Vendor: {order.vendor}</p>
-                        <p className="text-sm text-gray-600">Equipos: {order.equipment_count}</p>
-                        {!projectId && order.project_name && (
-                          <p className="text-xs text-gray-500">Project: {order.project_name}</p>
-                        )}
-                      </div>
-                    </div>
-                    <div className="mt-2 flex items-center space-x-4 text-xs text-gray-500">
-                      <div className="flex items-center">
-                        <Calendar className="h-4 w-4 mr-1" />
-                        Created {new Date(order.created_at).toLocaleDateString()}
-                      </div>
-                      {order.expected_delivery_date && (
-                        <div className="flex items-center">
-                          <Truck className="h-4 w-4 mr-1" />
-                          Expected {new Date(order.expected_delivery_date).toLocaleDateString()}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
-                      {order.status?.replace('_', ' ') || 'pending'}
-                    </span>
-                    <Link
-                      to={`/orders/${order.id}/delivery-notes`}
-                      className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors"
-                    >
-                      <Package className="h-3 w-3 mr-1" />
-                      Ver Albaranes
-                    </Link>
-                    {projectId && (
-                      <button
-                        onClick={() => handleEditOrder(order)}
-                        className="text-blue-600 hover:text-blue-700 text-sm font-medium transition-colors"
-                      >
-                        Editar
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-12">
-            <FileText className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No orders</h3>
-            <p className="mt-1 text-sm text-gray-500">Create your first order for this project.</p>
-          </div>
-        )}
-      </div>
+  async post(endpoint: string, data: any) {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify(data),
+      credentials: 'include'
+    });
+    return this.handleResponse(response);
+  }
 
-      {/* Order Modal */}
-      {isModalOpen && projectId && (
-        <OrderModal
-          order={editingOrder}
-          projectId={projectId!}
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-          onSave={handleOrderSaved}
-        />
-      )}
-    </div>
-  );
+  async put(endpoint: string, data: any) {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: 'PUT',
+      headers: this.getHeaders(),
+      body: JSON.stringify(data),
+      credentials: 'include'
+    });
+    return this.handleResponse(response);
+  }
+
+  async delete(endpoint: string) {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: 'DELETE',
+      headers: this.getHeaders(),
+      credentials: 'include'
+    });
+    return this.handleResponse(response);
+  }
+}
+
+const apiService = new ApiService();
+
+export const authAPI = {
+  login: (username: string, password: string) => 
+    apiService.post('/auth/login', { username, password }),
+  logout: () => 
+    apiService.post('/auth/logout', {}),
+  verify: () => 
+    apiService.get('/auth/verify')
 };
 
-export default OrdersPage;
+export const projectsAPI = {
+  getAll: () => apiService.get('/projects'),
+  getById: (id: string) => apiService.get(`/projects/${id}`),
+  create: (data: any) => apiService.post('/projects', data),
+  update: (id: string, data: any) => apiService.put(`/projects/${id}`, data),
+  delete: (id: string) => apiService.delete(`/projects/${id}`)
+};
+
+export const ordersAPI = {
+  getByProject: (projectId: string) => apiService.get(`/orders/project/${projectId}`),
+  getAll: () => apiService.get('/orders'),
+  create: (data: any) => apiService.post('/orders', data),
+  update: (id: string, data: any) => apiService.put(`/orders/${id}`, data)
+};
+
+export const deliveryNotesAPI = {
+  getAll: () => apiService.get('/delivery-notes'),
+  getByOrder: (orderId: string) => apiService.get(`/delivery-notes/order/${orderId}`),
+  create: (data: any) => apiService.post('/delivery-notes', data),
+  update: (id: string, data: any) => apiService.put(`/delivery-notes/${id}`, data)
+};
+
+export const equipmentAPI = {
+  getByDeliveryNote: (deliveryNoteId: string) => apiService.get(`/equipment/delivery-note/${deliveryNoteId}`),
+                        <h3 className="text-sm font-medium text-gray-900">{order.order_code || order.order_number}</h3>
+  update: (id: string, data: any) => apiService.put(`/equipment/${id}`, data)
+};
+
+export const monitoringAPI = {
+  getStatus: () => apiService.get('/monitoring/status'),
+  getLogs: (params?: any) => apiService.get(`/monitoring/logs${params ? `?${new URLSearchParams(params).toString()}` : ''}`),
+  getMetrics: () => apiService.get('/monitoring/metrics')
+};

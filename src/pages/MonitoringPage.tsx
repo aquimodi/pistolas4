@@ -3,7 +3,6 @@ import { Activity, Server, Users, Clock, AlertTriangle, CheckCircle } from 'luci
 import { monitoringAPI } from '../services/api';
 import { useNotification } from '../contexts/NotificationContext';
 import Breadcrumb from '../components/Breadcrumb';
-import LoadingSpinner from '../components/LoadingSpinner';
 
 const MonitoringPage = () => {
   const { addNotification } = useNotification();

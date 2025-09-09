@@ -5,7 +5,6 @@ import { projectsAPI } from '../services/api';
 import { useNotification } from '../contexts/NotificationContext';
 import { useAuth } from '../contexts/AuthContext';
 import Breadcrumb from '../components/Breadcrumb';
-import LoadingSpinner from '../components/LoadingSpinner';
 import ProjectModal from '../components/ProjectModal';
 
 const ProjectsPage = () => {

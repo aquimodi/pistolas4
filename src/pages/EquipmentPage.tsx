@@ -1,128 +1,278 @@
-// API base URL - uses proxy configured in vite.config.ts for development
-// and nginx proxy for production
-const API_BASE_URL = '/api';
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { Plus, Search, Calendar, Package, Server, Building, Edit3, Filter } from 'lucide-react';
+import { equipmentAPI, deliveryNotesAPI, ordersAPI, projectsAPI } from '../services/api';
+import { useNotification } from '../contexts/NotificationContext';
+import Breadcrumb from '../components/Breadcrumb';
+import LoadingSpinner from '../components/LoadingSpinner';
+import EquipmentModal from '../components/EquipmentModal';
 
-class ApiService {
-  private getHeaders() {
-    return {
-      'Content-Type': 'application/json',
-    };
-  }
+const EquipmentPage = () => {
+  const { addNotification } = useNotification();
+  const [equipment, setEquipment] = useState([]);
+  const [deliveryNotes, setDeliveryNotes] = useState([]);
+  const [orders, setOrders] = useState([]);
+  const [projects, setProjects] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingEquipment, setEditingEquipment] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
 
-  private async handleResponse(response: Response) {
-    if (!response.ok) {
-      // Manejar error 401 sin redirección automática
-      if (response.status === 401) {
-        // Solo redirigir si no estamos ya en la página de login
-        if (window.location.pathname !== '/login') {
-          // Usar setTimeout para evitar bucles infinitos
-          setTimeout(() => {
-            window.location.href = '/login';
-          }, 100);
-        }
-        throw new Error('Authentication required');
-      }
+  const fetchData = async () => {
+    try {
+      setIsLoading(true);
+      const [equipmentData, deliveryNotesData, ordersData, projectsData] = await Promise.all([
+        equipmentAPI.getAll(),
+        deliveryNotesAPI.getAll(),
+        ordersAPI.getAll(),
+        projectsAPI.getAll()
+      ]);
       
-      if (response.status === 429) {
-        throw new Error('Too many requests. Please wait and try again.');
-      }
-      
-      if (response.status === 500) {
-        throw new Error('Server error. Please try again later.');
-      }
-      
-      let error;
-      try {
-        error = await response.json();
-      } catch {
-        error = { error: response.status === 404 ? 'Resource not found' : 'Network error' };
-      }
-      throw new Error(error.error || 'Request failed');
+      setEquipment(equipmentData);
+      setDeliveryNotes(deliveryNotesData);
+      setOrders(ordersData);
+      setProjects(projectsData);
+    } catch (error) {
+      console.error('Error fetching equipment:', error);
+      addNotification({
+        type: 'error',
+        title: 'Error',
+        message: 'Failed to fetch equipment data'
+      });
+    } finally {
+      setIsLoading(false);
     }
-    return response.json();
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const handleCreateEquipment = (deliveryNoteId: string) => {
+    setEditingEquipment(null);
+    setIsModalOpen(true);
+  };
+
+  const handleEditEquipment = (equipmentItem: any) => {
+    setEditingEquipment(equipmentItem);
+    setIsModalOpen(true);
+  };
+
+  const handleEquipmentSaved = () => {
+    fetchData();
+    setIsModalOpen(false);
+    setEditingEquipment(null);
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'received': return 'bg-yellow-100 text-yellow-800';
+      case 'installed': return 'bg-blue-100 text-blue-800';
+      case 'configured': return 'bg-green-100 text-green-800';
+      case 'decommissioned': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getConditionColor = (condition: string) => {
+    switch (condition) {
+      case 'new': return 'bg-green-100 text-green-800';
+      case 'good': return 'bg-blue-100 text-blue-800';
+      case 'fair': return 'bg-yellow-100 text-yellow-800';
+      case 'poor': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const filteredEquipment = equipment.filter(item => {
+    const matchesSearch = 
+      item.serial_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.asset_tag?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.manufacturer?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.model?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesStatus = !selectedStatus || item.status === selectedStatus;
+    const matchesCategory = !selectedCategory || item.category === selectedCategory;
+    
+    return matchesSearch && matchesStatus && matchesCategory;
+  });
+
+  if (isLoading) {
+    return (
+      <div className="p-6 flex justify-center">
+        <LoadingSpinner size="large" />
+      </div>
+    );
   }
 
-  async get(endpoint: string) {
-    console.log(`API GET: ${API_BASE_URL}${endpoint}`);
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      headers: this.getHeaders(),
-      credentials: 'include'
-    });
-    return this.handleResponse(response);
-  }
+  return (
+    <div className="p-6 space-y-6">
+      {/* Breadcrumb */}
+      <Breadcrumb items={[{ label: 'Equipment', current: true }]} />
 
-  async post(endpoint: string, data: any) {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: 'POST',
-      headers: this.getHeaders(),
-      body: JSON.stringify(data),
-      credentials: 'include'
-    });
-    return this.handleResponse(response);
-  }
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Inventario de Equipos</h1>
+          <p className="mt-1 text-gray-600">Gestiona todo el equipamiento del datacenter</p>
+        </div>
+        <div className="text-sm text-gray-600">
+          Total equipos: {equipment.length}
+        </div>
+      </div>
 
-  async put(endpoint: string, data: any) {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: 'PUT',
-      headers: this.getHeaders(),
-      body: JSON.stringify(data),
-      credentials: 'include'
-    });
-    return this.handleResponse(response);
-  }
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex-1">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <input
+              type="text"
+              placeholder="Buscar por S/N, Asset Tag, Fabricante o Modelo..."
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+        </div>
+        
+        <select
+          className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          value={selectedStatus}
+          onChange={(e) => setSelectedStatus(e.target.value)}
+        >
+          <option value="">Todos los estados</option>
+          <option value="received">Recibido</option>
+          <option value="installed">Instalado</option>
+          <option value="configured">Configurado</option>
+          <option value="decommissioned">Dado de Baja</option>
+        </select>
 
-  async delete(endpoint: string) {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: 'DELETE',
-      headers: this.getHeaders(),
-      credentials: 'include'
-    });
-    return this.handleResponse(response);
-  }
-}
+        <select
+          className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          value={selectedCategory}
+          onChange={(e) => setSelectedCategory(e.target.value)}
+        >
+          <option value="">Todas las categorías</option>
+          <option value="Server">Servidor</option>
+          <option value="Network">Red</option>
+          <option value="Storage">Almacenamiento</option>
+          <option value="Security">Seguridad</option>
+          <option value="Accessory">Accesorio</option>
+        </select>
+      </div>
 
-const apiService = new ApiService();
+      {/* Equipment Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {filteredEquipment.map((item: any) => {
+          const deliveryNote = deliveryNotes.find(dn => dn.id === item.delivery_note_id);
+          const order = orders.find(o => o.id === deliveryNote?.order_id);
+          const project = projects.find(p => p.id === order?.project_id);
 
-export const authAPI = {
-  login: (username: string, password: string) => 
-    apiService.post('/auth/login', { username, password }),
-  logout: () => 
-    apiService.post('/auth/logout', {}),
-  verify: () => 
-    apiService.get('/auth/verify')
+          return (
+            <div key={item.id} className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center">
+                    <Server className="h-8 w-8 text-blue-600 mr-3" />
+                    <div>
+                      <h3 className="text-lg font-medium text-gray-900">{item.manufacturer} {item.model}</h3>
+                      <p className="text-sm text-gray-600">S/N: {item.serial_number}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleEditEquipment(item)}
+                    className="text-indigo-600 hover:text-indigo-900 p-1 rounded-full hover:bg-indigo-100"
+                  >
+                    <Edit3 className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="space-y-2 mb-4">
+                  {item.asset_tag && (
+                    <div className="text-sm">
+                      <span className="font-medium">Asset Tag:</span> {item.asset_tag}
+                    </div>
+                  )}
+                  {item.category && (
+                    <div className="text-sm">
+                      <span className="font-medium">Categoría:</span> {item.category}
+                    </div>
+                  )}
+                  {item.location && (
+                    <div className="text-sm flex items-center">
+                      <Building className="h-4 w-4 mr-1" />
+                      {item.location}
+                    </div>
+                  )}
+                  {item.specifications && (
+                    <div className="text-sm">
+                      <span className="font-medium">Especificaciones:</span>
+                      <p className="text-gray-600 mt-1">{item.specifications}</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex flex-col space-y-1">
+                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(item.status)}`}>
+                      {item.status}
+                    </span>
+                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getConditionColor(item.condition_status)}`}>
+                      {item.condition_status}
+                    </span>
+                  </div>
+                  
+                  {project && (
+                    <div className="text-right">
+                      <p className="text-xs text-gray-500">Proyecto:</p>
+                      <p className="text-sm font-medium text-gray-900">{project.project_name}</p>
+                    </div>
+                  )}
+                </div>
+
+                {deliveryNote && (
+                  <div className="mt-3 pt-3 border-t border-gray-200">
+                    <p className="text-xs text-gray-500">
+                      Albarán: {deliveryNote.delivery_code} • 
+                      Entregado: {new Date(deliveryNote.delivery_date).toLocaleDateString()}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* No Equipment Message */}
+      {filteredEquipment.length === 0 && (
+        <div className="text-center py-12">
+          <Package className="mx-auto h-12 w-12 text-gray-400" />
+          <h3 className="mt-2 text-sm font-medium text-gray-900">No hay equipos</h3>
+          <p className="mt-1 text-sm text-gray-500">
+            {searchTerm || selectedStatus || selectedCategory 
+              ? 'No se encontraron equipos con los filtros aplicados.'
+              : 'Los equipos aparecerán aquí cuando se registren en los albaranes.'
+            }
+          </p>
+        </div>
+      )}
+
+      {/* Equipment Modal */}
+      {isModalOpen && (
+        <EquipmentModal
+          equipment={editingEquipment}
+          deliveryNoteId={editingEquipment?.delivery_note_id || ''}
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onSave={handleEquipmentSaved}
+        />
+      )}
+    </div>
+  );
 };
 
-export const projectsAPI = {
-  getAll: () => apiService.get('/projects'),
-  getById: (id: string) => apiService.get(`/projects/${id}`),
-  create: (data: any) => apiService.post('/projects', data),
-  update: (id: string, data: any) => apiService.put(`/projects/${id}`, data),
-  delete: (id: string) => apiService.delete(`/projects/${id}`)
-};
-
-export const ordersAPI = {
-  getByProject: (projectId: string) => apiService.get(`/orders/project/${projectId}`),
-  getAll: () => apiService.get('/orders'),
-  create: (data: any) => apiService.post('/orders', data),
-  update: (id: string, data: any) => apiService.put(`/orders/${id}`, data)
-};
-
-export const deliveryNotesAPI = {
-  getAll: () => apiService.get('/delivery-notes'),
-  getByOrder: (orderId: string) => apiService.get(`/delivery-notes/order/${orderId}`),
-  create: (data: any) => apiService.post('/delivery-notes', data),
-  update: (id: string, data: any) => apiService.put(`/delivery-notes/${id}`, data)
-};
-
-export const equipmentAPI = {
-  getByDeliveryNote: (deliveryNoteId: string) => apiService.get(`/equipment/delivery-note/${deliveryNoteId}`),
-  getAll: () => apiService.get('/equipment'),
-  create: (data: any) => apiService.post('/equipment', data),
-  update: (id: string, data: any) => apiService.put(`/equipment/${id}`, data)
-};
-
-export const monitoringAPI = {
-  getStatus: () => apiService.get('/monitoring/status'),
-  getLogs: (params?: any) => apiService.get(`/monitoring/logs${params ? `?${new URLSearchParams(params).toString()}` : ''}`),
-  getMetrics: () => apiService.get('/monitoring/metrics')
-};
+export default EquipmentPage;

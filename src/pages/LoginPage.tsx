@@ -3,7 +3,6 @@ import { Navigate } from 'react-router-dom';
 import { Server, Lock, User, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotification } from '../contexts/NotificationContext';
-import LoadingSpinner from '../components/LoadingSpinner';
 
 const LoginPage = () => {
   const { user, login } = useAuth();

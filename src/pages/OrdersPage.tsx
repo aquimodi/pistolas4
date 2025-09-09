@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Search, Calendar, Package, FileText, Edit3, Trash2 } from 'lucide-react';
 import { ordersAPI, projectsAPI } from '../services/api';
-import { OrderModal } from '../components/OrderModal';
-import { LoadingSpinner } from '../components/LoadingSpinner';
+import OrderModal from '../components/OrderModal';
+import LoadingSpinner from '../components/LoadingSpinner';
 import { useNotification } from '../contexts/NotificationContext';
 
 interface Order {

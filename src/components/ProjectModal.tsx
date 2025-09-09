@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { projectsAPI } from '../services/api';
 import { useNotification } from '../contexts/NotificationContext';
-import LoadingSpinner from './LoadingSpinner';
 
 interface ProjectModalProps {
   project: any;

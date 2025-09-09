@@ -1,127 +1,225 @@
-// API base URL - uses proxy configured in vite.config.ts for development
-// and nginx proxy for production
-const API_BASE_URL = '/api';
+import React, { useState, useEffect } from 'react';
+import { Plus, Search, Calendar, Package, FileText, Edit3, Trash2, Building } from 'lucide-react';
+import { deliveryNotesAPI, ordersAPI, projectsAPI } from '../services/api';
+import { useNotification } from '../contexts/NotificationContext';
+import Breadcrumb from '../components/Breadcrumb';
+import LoadingSpinner from '../components/LoadingSpinner';
+import DeliveryNoteModal from '../components/DeliveryNoteModal';
 
-class ApiService {
-  private getHeaders() {
-    return {
-      'Content-Type': 'application/json',
-    };
-  }
+const DeliveryNotesPage = () => {
+  const { addNotification } = useNotification();
+  const [deliveryNotes, setDeliveryNotes] = useState([]);
+  const [orders, setOrders] = useState([]);
+  const [projects, setProjects] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingDeliveryNote, setEditingDeliveryNote] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedOrder, setSelectedOrder] = useState('');
 
-  private async handleResponse(response: Response) {
-    if (!response.ok) {
-      // Manejar error 401 sin redirección automática
-      if (response.status === 401) {
-        // Solo redirigir si no estamos ya en la página de login
-        if (window.location.pathname !== '/login') {
-          // Usar setTimeout para evitar bucles infinitos
-          setTimeout(() => {
-            window.location.href = '/login';
-          }, 100);
-        }
-        throw new Error('Authentication required');
-      }
+  const fetchData = async () => {
+    try {
+      setIsLoading(true);
+      const [deliveryNotesData, ordersData, projectsData] = await Promise.all([
+        deliveryNotesAPI.getAll(),
+        ordersAPI.getAll(),
+        projectsAPI.getAll()
+      ]);
       
-      if (response.status === 429) {
-        throw new Error('Too many requests. Please wait and try again.');
-      }
-      
-      if (response.status === 500) {
-        throw new Error('Server error. Please try again later.');
-      }
-      
-      let error;
-      try {
-        error = await response.json();
-      } catch {
-        error = { error: response.status === 404 ? 'Resource not found' : 'Network error' };
-      }
-      throw new Error(error.error || 'Request failed');
+      setDeliveryNotes(deliveryNotesData);
+      setOrders(ordersData);
+      setProjects(projectsData);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      addNotification({
+        type: 'error',
+        title: 'Error',
+        message: 'Failed to fetch delivery notes data'
+      });
+    } finally {
+      setIsLoading(false);
     }
-    return response.json();
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const handleCreateDeliveryNote = (orderId: string) => {
+    setEditingDeliveryNote(null);
+    setSelectedOrder(orderId);
+    setIsModalOpen(true);
+  };
+
+  const handleEditDeliveryNote = (deliveryNote: any) => {
+    setEditingDeliveryNote(deliveryNote);
+    setSelectedOrder(deliveryNote.order_id);
+    setIsModalOpen(true);
+  };
+
+  const handleDeliveryNoteSaved = () => {
+    fetchData();
+    setIsModalOpen(false);
+    setEditingDeliveryNote(null);
+    setSelectedOrder('');
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'received': return 'bg-green-100 text-green-800';
+      case 'processing': return 'bg-yellow-100 text-yellow-800';
+      case 'completed': return 'bg-blue-100 text-blue-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const filteredDeliveryNotes = deliveryNotes.filter(note => {
+    const matchesSearch = 
+      note.delivery_code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      note.carrier?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      note.tracking_number?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    return matchesSearch;
+  });
+
+  if (isLoading) {
+    return (
+      <div className="p-6 flex justify-center">
+        <LoadingSpinner size="large" />
+      </div>
+    );
   }
 
-  async get(endpoint: string) {
-    console.log(`API GET: ${API_BASE_URL}${endpoint}`);
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      headers: this.getHeaders(),
-      credentials: 'include'
-    });
-    return this.handleResponse(response);
-  }
+  return (
+    <div className="p-6 space-y-6">
+      {/* Breadcrumb */}
+      <Breadcrumb items={[{ label: 'Delivery Notes', current: true }]} />
 
-  async post(endpoint: string, data: any) {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: 'POST',
-      headers: this.getHeaders(),
-      body: JSON.stringify(data),
-      credentials: 'include'
-    });
-    return this.handleResponse(response);
-  }
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Albaranes de Entrega</h1>
+          <p className="mt-1 text-gray-600">Gestiona los albaranes de entrega de equipos</p>
+        </div>
+      </div>
 
-  async put(endpoint: string, data: any) {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: 'PUT',
-      headers: this.getHeaders(),
-      body: JSON.stringify(data),
-      credentials: 'include'
-    });
-    return this.handleResponse(response);
-  }
+      {/* Search */}
+      <div className="mb-6">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+          <input
+            type="text"
+            placeholder="Buscar albaranes..."
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+      </div>
 
-  async delete(endpoint: string) {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: 'DELETE',
-      headers: this.getHeaders(),
-      credentials: 'include'
-    });
-    return this.handleResponse(response);
-  }
-}
+      {/* Orders and Delivery Notes */}
+      <div className="space-y-6">
+        {orders.map((order: any) => {
+          const orderDeliveryNotes = deliveryNotes.filter(note => note.order_id === order.id);
+          const project = projects.find(p => p.id === order.project_id);
 
-const apiService = new ApiService();
+          return (
+            <div key={order.id} className="bg-white rounded-lg shadow-sm border border-gray-200">
+              {/* Order Header */}
+              <div className="p-6 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center">
+                    <FileText className="h-8 w-8 text-blue-600 mr-3" />
+                    <div>
+                      <h2 className="text-xl font-medium text-gray-900">{order.order_code}</h2>
+                      <p className="text-gray-600">{project?.project_name} - {project?.client}</p>
+                      <div className="flex items-center mt-1 text-sm text-gray-500">
+                        <Building className="h-4 w-4 mr-1" />
+                        {project?.datacenter} | Equipos esperados: {order.equipment_count}
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleCreateDeliveryNote(order.id)}
+                    className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-colors"
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Nuevo Albarán
+                  </button>
+                </div>
+              </div>
 
-export const authAPI = {
-  login: (username: string, password: string) => 
-    apiService.post('/auth/login', { username, password }),
-  logout: () => 
-    apiService.post('/auth/logout', {}),
-  verify: () => 
-    apiService.get('/auth/verify')
+              {/* Delivery Notes */}
+              <div className="p-6">
+                {orderDeliveryNotes.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {orderDeliveryNotes.map((note: any) => (
+                      <div key={note.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                        <div className="flex items-center justify-between mb-3">
+                          <h3 className="text-sm font-medium text-gray-900">{note.delivery_code}</h3>
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(note.status)}`}>
+                            {note.status}
+                          </span>
+                        </div>
+                        
+                        <div className="text-sm text-gray-600 space-y-1">
+                          <p>Equipos: {note.estimated_equipment_count}</p>
+                          <div className="flex items-center">
+                            <Calendar className="h-4 w-4 mr-1" />
+                            {new Date(note.delivery_date).toLocaleDateString()}
+                          </div>
+                          {note.carrier && (
+                            <p>Transportista: {note.carrier}</p>
+                          )}
+                          {note.tracking_number && (
+                            <p className="text-xs">Tracking: {note.tracking_number}</p>
+                          )}
+                        </div>
+
+                        <div className="flex justify-end mt-3">
+                          <button
+                            onClick={() => handleEditDeliveryNote(note)}
+                            className="text-indigo-600 hover:text-indigo-900 p-1 rounded-full hover:bg-indigo-100"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <Package className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                    <p>No hay albaranes para este pedido</p>
+                    <p className="text-sm">Haz clic en "Nuevo Albarán" para crear uno</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {orders.length === 0 && (
+        <div className="text-center py-12">
+          <FileText className="mx-auto h-12 w-12 text-gray-400" />
+          <h3 className="mt-2 text-sm font-medium text-gray-900">No hay pedidos</h3>
+          <p className="mt-1 text-sm text-gray-500">Primero debe crear pedidos para poder generar albaranes.</p>
+        </div>
+      )}
+
+      {/* Delivery Note Modal */}
+      {isModalOpen && (
+        <DeliveryNoteModal
+          deliveryNote={editingDeliveryNote}
+          orderId={selectedOrder}
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onSave={handleDeliveryNoteSaved}
+        />
+      )}
+    </div>
+  );
 };
 
-export const projectsAPI = {
-  getAll: () => apiService.get('/projects'),
-  getById: (id: string) => apiService.get(`/projects/${id}`),
-  create: (data: any) => apiService.post('/projects', data),
-  update: (id: string, data: any) => apiService.put(`/projects/${id}`, data),
-  delete: (id: string) => apiService.delete(`/projects/${id}`)
-};
-
-export const ordersAPI = {
-  getByProject: (projectId: string) => apiService.get(`/orders/project/${projectId}`),
-  getAll: () => apiService.get('/orders'),
-  create: (data: any) => apiService.post('/orders', data),
-  update: (id: string, data: any) => apiService.put(`/orders/${id}`, data)
-};
-
-export const deliveryNotesAPI = {
-  getAll: () => apiService.get('/delivery-notes'),
-  getByOrder: (orderId: string) => apiService.get(`/delivery-notes/order/${orderId}`),
-  create: (data: any) => apiService.post('/delivery-notes', data),
-  update: (id: string, data: any) => apiService.put(`/delivery-notes/${id}`, data)
-};
-
-export const equipmentAPI = {
-  getByDeliveryNote: (deliveryNoteId: string) => apiService.get(`/equipment/delivery-note/${deliveryNoteId}`),
-  create: (data: any) => apiService.post('/equipment', data),
-  update: (id: string, data: any) => apiService.put(`/equipment/${id}`, data)
-};
-
-export const monitoringAPI = {
-  getStatus: () => apiService.get('/monitoring/status'),
-  getLogs: (params?: any) => apiService.get(`/monitoring/logs${params ? `?${new URLSearchParams(params).toString()}` : ''}`),
-  getMetrics: () => apiService.get('/monitoring/metrics')
-};
+export default DeliveryNotesPage;

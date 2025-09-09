@@ -24,34 +24,24 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isVerifying, setIsVerifying] = useState(false);
 
   useEffect(() => {
     const verifySession = async () => {
-      // Evitar múltiples verificaciones simultáneas
-      if (isVerifying) return;
-      
-      setIsVerifying(true);
       try {
-        const response = await fetch('/api/auth/verify', {
+        const response = await fetch('http://localhost:3001/api/auth/verify', {
           credentials: 'include'
         });
         
         if (response.ok) {
           const data = await response.json();
           setUser(data.user);
-        } else if (response.status !== 401) {
-          // Solo loggear errores que no sean de autorización
-          console.error('Auth verification failed:', response.status);
+        } else {
           setUser(null);
         }
       } catch (error) {
-        // Silenciar errores de red durante verificación inicial
         setUser(null);
-      } finally {
-        setIsVerifying(false);
-        setIsLoading(false);
       }
+      setIsLoading(false);
     };
 
     verifySession();
@@ -59,23 +49,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const login = async (username: string, password: string) => {
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({ username, password }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setUser(data.user);
-        return data;
-      } else {
-        const error = await response.json();
-        throw new Error(error.error || 'Login failed');
-      }
+      const response = await authAPI.login(username, password);
+      setUser(response.user);
     } catch (error) {
       throw error;
     }
@@ -83,10 +58,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const logout = async () => {
     try {
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        credentials: 'include'
-      });
+      await authAPI.logout();
     } catch (error) {
       console.error('Logout error:', error);
     } finally {

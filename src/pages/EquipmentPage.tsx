@@ -1,208 +1,157 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { Monitor, Plus } from 'lucide-react';
+import { Plus, Package, MapPin, Calendar, Cpu, HardDrive } from 'lucide-react';
+import { equipmentAPI } from '../services/api';
 import { useNotification } from '../contexts/NotificationContext';
-import { equipmentAPI, deliveryNotesAPI } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
+import Breadcrumb from '../components/Breadcrumb';
 import LoadingSpinner from '../components/LoadingSpinner';
-import EquipmentModal from '../components/EquipmentModal';
 
-interface EquipmentPageProps {}
-
-const EquipmentPage: React.FC<EquipmentPageProps> = () => {
+const EquipmentPage = () => {
   const { deliveryNoteId } = useParams();
+  const { user } = useAuth();
   const { addNotification } = useNotification();
   const [equipment, setEquipment] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedEquipment, setSelectedEquipment] = useState(null);
-  const [deliveryNote, setDeliveryNote] = useState(null);
 
-  useEffect(() => {
-    fetchData();
-  }, [deliveryNoteId]);
-
-  const fetchData = async () => {
+  const fetchEquipment = async () => {
     try {
-      if (deliveryNoteId && deliveryNoteId !== 'all') {
-        // Fetch delivery note details if needed
-        // const deliveryNoteData = await deliveryNotesAPI.getById(deliveryNoteId);
-        // setDeliveryNote(deliveryNoteData);
-        
-        // Fetch equipment for specific delivery note
-        const equipmentData = await equipmentAPI.getByDeliveryNote(deliveryNoteId);
-        setEquipment(equipmentData);
-      } else {
-        // Show all equipment
-        const data = await equipmentAPI.getAll();
+      if (deliveryNoteId) {
+        const data = await equipmentAPI.getByDeliveryNote(deliveryNoteId);
         setEquipment(data);
       }
     } catch (error) {
-      console.error('Error fetching equipment:', error);
       addNotification({
         type: 'error',
         title: 'Error',
         message: 'Failed to fetch equipment'
       });
-      setEquipment([]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleCreateEquipment = () => {
-    setSelectedEquipment(null);
-    setIsModalOpen(true);
+  useEffect(() => {
+    fetchEquipment();
+  }, [deliveryNoteId]);
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'received': return 'bg-blue-100 text-blue-800';
+      case 'installed': return 'bg-green-100 text-green-800';
+      case 'configured': return 'bg-purple-100 text-purple-800';
+      case 'decommissioned': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
   };
 
-  const handleEditEquipment = (equipmentItem: any) => {
-    setSelectedEquipment(equipmentItem);
-    setIsModalOpen(true);
-  };
-
-  const handleModalClose = () => {
-    setIsModalOpen(false);
-    setSelectedEquipment(null);
-  };
-
-  const handleModalSave = async (data: any) => {
-    try {
-      if (selectedEquipment) {
-        await equipmentAPI.update(selectedEquipment.id, data);
-        addNotification({
-          type: 'success',
-          title: 'Success',
-          message: 'Equipment updated successfully'
-        });
-      } else {
-        await equipmentAPI.create({ ...data, delivery_note_id: deliveryNoteId });
-        addNotification({
-          type: 'success',
-          title: 'Success',
-          message: 'Equipment registered successfully'
-        });
-      }
-      await fetchData();
-      handleModalClose();
-    } catch (error: any) {
-      addNotification({
-        type: 'error',
-        title: 'Error',
-        message: error.message || 'Failed to save equipment'
-      });
+  const getConditionColor = (condition: string) => {
+    switch (condition) {
+      case 'new': return 'bg-green-100 text-green-800';
+      case 'good': return 'bg-blue-100 text-blue-800';
+      case 'fair': return 'bg-yellow-100 text-yellow-800';
+      case 'poor': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
     }
   };
 
   if (isLoading) {
-    return <LoadingSpinner />;
+    return (
+      <div className="p-6 flex justify-center">
+        <LoadingSpinner size="large" />
+      </div>
+    );
   }
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            {deliveryNoteId && deliveryNoteId !== 'all' ? 'Equipment for Delivery Note' : 'All Equipment'}
-          </h1>
-          {deliveryNote && (
-            <p className="text-gray-600 mt-1">Delivery Note: {deliveryNote.delivery_code}</p>
-          )}
+    <div className="p-6 space-y-6">
+      {/* Breadcrumb */}
+      <Breadcrumb items={[
+        { label: 'Projects', href: '/projects' },
+        { label: 'Project Name', href: '/projects' },
+        { label: 'Order Number', href: '/projects/1/orders' },
+        { label: 'Delivery Note', current: true }
+      ]} />
+
+      {/* Header */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Equipment Inventory</h1>
+            <p className="mt-1 text-gray-600">Delivery Note: DN-2024-{deliveryNoteId}</p>
+          </div>
         </div>
-        {deliveryNoteId && deliveryNoteId !== 'all' && (
-          <button
-            onClick={handleCreateEquipment}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2 transition-colors"
-          >
-            <Plus className="h-5 w-5" />
-            <span>Register Equipment</span>
-          </button>
-        )}
       </div>
 
-      <div className="bg-white rounded-lg shadow">
-        {equipment.length > 0 ? (
-          <div className="divide-y divide-gray-200">
-            {equipment.map((item: any) => (
-              <div key={item.id} className="p-6 hover:bg-gray-50 transition-colors">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-3">
-                      <Monitor className="h-5 w-5 text-gray-600" />
-                      <div>
-                        <h3 className="text-sm font-medium text-gray-900">{item.serial_number}</h3>
-                        <p className="text-sm text-gray-600">{item.manufacturer} {item.model}</p>
-                        {item.asset_tag && (
-                          <p className="text-sm text-gray-600">Asset Tag: {item.asset_tag}</p>
-                        )}
-                        {!deliveryNoteId && item.delivery_note_number && (
-                          <p className="text-xs text-gray-500">Delivery Note: {item.delivery_note_number}</p>
-                        )}
-                      </div>
-                    </div>
+      {/* Equipment Grid */}
+      {equipment.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {equipment.map((item: any) => (
+            <div key={item.id} className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <Package className="h-8 w-8 text-blue-600" />
+                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(item.status)}`}>
+                    {item.status?.replace('_', ' ') || 'received'}
+                  </span>
+                </div>
+
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  {item.manufacturer} {item.model}
+                </h3>
+                
+                <div className="space-y-2 text-sm text-gray-600">
+                  <div className="flex items-center">
+                    <Cpu className="h-4 w-4 mr-2" />
+                    Serial: {item.serial_number}
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                      item.status === 'deployed' ? 'bg-green-100 text-green-800' :
-                      item.status === 'received' ? 'bg-blue-100 text-blue-800' :
-                      item.status === 'testing' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-gray-100 text-gray-800'
-                    }`}>
-                      {item.status}
-                    </span>
-                    {item.condition_status && (
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                        item.condition_status === 'new' ? 'bg-green-100 text-green-800' :
-                        item.condition_status === 'used' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-red-100 text-red-800'
-                      }`}>
-                        {item.condition_status}
-                      </span>
-                    )}
-                    <button
-                      onClick={() => handleEditEquipment(item)}
-                      className="text-blue-600 hover:text-blue-800 font-medium text-sm"
-                    >
-                      Edit
-                    </button>
+                  
+                  {item.asset_tag && (
+                    <div className="flex items-center">
+                      <HardDrive className="h-4 w-4 mr-2" />
+                      Asset: {item.asset_tag}
+                    </div>
+                  )}
+                  
+                  {item.location && (
+                    <div className="flex items-center">
+                      <MapPin className="h-4 w-4 mr-2" />
+                      Location: {item.location}
+                    </div>
+                  )}
+
+                  <div className="flex items-center">
+                    <Calendar className="h-4 w-4 mr-2" />
+                    Added {new Date(item.created_at).toLocaleDateString()}
                   </div>
                 </div>
-                {item.location && (
-                  <p className="text-xs text-gray-500 mt-2">Location: {item.location}</p>
+
+                {item.condition_status && (
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getConditionColor(item.condition_status)}`}>
+                      Condition: {item.condition_status}
+                    </span>
+                  </div>
+                )}
+
+                {item.specifications && (
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <p className="text-xs text-gray-500 line-clamp-2">{item.specifications}</p>
+                  </div>
                 )}
               </div>
-            ))}
-          </div>
-        ) : (
-          <div className="p-12 text-center">
-            <Monitor className="mx-auto h-12 w-12 text-gray-400" />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+          <div className="text-center py-12">
+            <Package className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">No equipment</h3>
-            <p className="mt-1 text-sm text-gray-500">
-              {deliveryNoteId && deliveryNoteId !== 'all' 
-                ? 'Get started by registering equipment for this delivery note.'
-                : 'No equipment found in the system.'
-              }
-            </p>
-            {deliveryNoteId && deliveryNoteId !== 'all' && (
-              <div className="mt-6">
-                <button
-                  onClick={handleCreateEquipment}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2 mx-auto transition-colors"
-                >
-                  <Plus className="h-5 w-5" />
-                  <span>Register Equipment</span>
-                </button>
-              </div>
-            )}
+            <p className="mt-1 text-sm text-gray-500">Equipment items will appear here when they are registered.</p>
           </div>
-        )}
-      </div>
-
-      <EquipmentModal
-        isOpen={isModalOpen}
-        onClose={handleModalClose}
-        onSave={handleModalSave}
-        equipment={selectedEquipment}
-        deliveryNoteId={deliveryNoteId}
-      />
+        </div>
+      )}
     </div>
   );
 };

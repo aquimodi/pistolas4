@@ -8,7 +8,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 const LoginPage = () => {
   const { user, login } = useAuth();
   const { addNotification } = useNotification();
-  const [credentials, setCredentials] = useState({ username: 'admin', password: 'admin' });
+  const [credentials, setCredentials] = useState({ username: '', password: '' });
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 

@@ -13,28 +13,14 @@ import {
 import { projectsAPI, ordersAPI, equipmentAPI, monitoringAPI } from '../services/api';
 import LoadingSpinner from '../components/LoadingSpinner';
 
-interface DashboardStats {
-  projects: number;
-  orders: number;  
-  equipment: number;
-  pending_deliveries: number;
-}
-
-interface SystemMetrics {
-  requests_per_minute: number;
-  average_response_time: number;
-  error_rate: number;
-  active_users: number;
-}
-
 const DashboardPage = () => {
-  const [stats, setStats] = useState<DashboardStats>({
+  const [stats, setStats] = useState({
     projects: 0,
     orders: 0,
     equipment: 0,
     pending_deliveries: 0
   });
-  const [metrics, setMetrics] = useState<SystemMetrics>({
+  const [metrics, setMetrics] = useState({
     requests_per_minute: 0,
     average_response_time: 0,
     error_rate: 0,
@@ -44,66 +30,36 @@ const DashboardPage = () => {
   const [recentActivity, setRecentActivity] = useState([]);
 
   useEffect(() => {
-    let isMounted = true;
-    
-    const fetchDashboardData = async () => {      
+    const fetchDashboardData = async () => {
       try {
-        setIsLoading(true);
-        
-        // Cargar datos uno por uno para mejor manejo de errores
-        let projects = [];
-        let orders = [];
-        let equipment = [];
-        let systemMetrics = { requests_per_minute: 0, average_response_time: 0, error_rate: 0, active_users: 0 };
-        
-        try {
-          projects = await projectsAPI.getAll();
-        } catch (error) {
-          console.warn('Failed to load projects, using empty array');
-        }
-        
-        try {
-          orders = await ordersAPI.getAll();
-        } catch (error) {
-          console.warn('Failed to load orders, using empty array');
-        }
-        
-        try {
-          equipment = await equipmentAPI.getAll();
-        } catch (error) {
-          console.warn('Failed to load equipment, using empty array');
-        }
-        
-        try {
-          systemMetrics = await monitoringAPI.getMetrics();
-        } catch (error) {
-          console.warn('Failed to load metrics, using defaults');
-        }
+        const [projects, orders, equipment, systemMetrics] = await Promise.all([
+          projectsAPI.getAll(),
+          ordersAPI.getAll(),
+          equipmentAPI.getAll(),
+          monitoringAPI.getMetrics()
+        ]);
 
-        if (isMounted) {
-          setStats({
-            projects: projects.length,
-            orders: orders.length,
-            equipment: equipment.length,
-            pending_deliveries: orders.filter((o: any) => o.status === 'pending').length
-          });
+        setStats({
+          projects: projects.length,
+          orders: orders.length,
+          equipment: equipment.length,
+          pending_deliveries: orders.filter((o: any) => o.status === 'pending').length
+        });
 
-          setMetrics(systemMetrics);
+        setMetrics(systemMetrics);
 
-          // Mock recent activity
-          setRecentActivity([
-            { id: 1, action: 'Equipment received', item: 'PowerEdge R750 (SN: DL001234)', time: '2 minutes ago', type: 'success' },
-            { id: 2, action: 'Order created', item: 'ORD-2024-003 from Cisco', time: '15 minutes ago', type: 'info' },
-            { id: 3, action: 'Project updated', item: 'DC Expansion Phase 1', time: '1 hour ago', type: 'info' },
-            { id: 4, action: 'Delivery delayed', item: 'DN-2024-005', time: '2 hours ago', type: 'warning' }
-          ]);
-        }
+        // Mock recent activity
+        setRecentActivity([
+          { id: 1, action: 'Equipment received', item: 'PowerEdge R750 (SN: DL001234)', time: '2 minutes ago', type: 'success' },
+          { id: 2, action: 'Order created', item: 'ORD-2024-003 from Cisco', time: '15 minutes ago', type: 'info' },
+          { id: 3, action: 'Project updated', item: 'DC Expansion Phase 1', time: '1 hour ago', type: 'info' },
+          { id: 4, action: 'Delivery delayed', item: 'DN-2024-005', time: '2 hours ago', type: 'warning' }
+        ]);
+
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
       } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
+        setIsLoading(false);
       }
     };
 
@@ -111,17 +67,10 @@ const DashboardPage = () => {
     
     // Refresh metrics every 30 seconds
     const interval = setInterval(() => {
-      if (isMounted) {
-        monitoringAPI.getMetrics()
-          .then(setMetrics)
-          .catch(() => console.warn('Failed to refresh metrics'));
-      }
+      monitoringAPI.getMetrics().then(setMetrics).catch(console.error);
     }, 30000);
 
-    return () => {
-      isMounted = false;
-      clearInterval(interval);
-    };
+    return () => clearInterval(interval);
   }, []);
 
   if (isLoading) {
@@ -134,9 +83,9 @@ const DashboardPage = () => {
 
   const statCards = [
     { name: 'Active Projects', value: stats.projects, icon: Server, color: 'blue', href: '/projects' },
-    { name: 'Total Orders', value: stats.orders, icon: FileText, color: 'green', href: '/equipment' },
+    { name: 'Total Orders', value: stats.orders, icon: FileText, color: 'green', href: '/projects' },
     { name: 'Equipment Items', value: stats.equipment, icon: Package, color: 'purple', href: '/equipment' },
-    { name: 'Pending Deliveries', value: stats.pending_deliveries, icon: Clock, color: 'orange', href: '/equipment' }
+    { name: 'Pending Deliveries', value: stats.pending_deliveries, icon: Clock, color: 'orange', href: '/projects' }
   ];
 
   const metricCards = [
@@ -162,25 +111,15 @@ const DashboardPage = () => {
             <Link
               key={stat.name}
               to={stat.href}
-              className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-lg hover:border-blue-200 transition-all duration-200 group cursor-pointer"
+              className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow group"
             >
               <div className="flex items-center">
-                <div className={`p-3 rounded-lg ${
-                  stat.color === 'blue' ? 'bg-blue-100 group-hover:bg-blue-200' :
-                  stat.color === 'green' ? 'bg-green-100 group-hover:bg-green-200' :
-                  stat.color === 'purple' ? 'bg-purple-100 group-hover:bg-purple-200' :
-                  'bg-orange-100 group-hover:bg-orange-200'
-                } transition-colors`}>
-                  <Icon className={`h-6 w-6 ${
-                    stat.color === 'blue' ? 'text-blue-600' :
-                    stat.color === 'green' ? 'text-green-600' :
-                    stat.color === 'purple' ? 'text-purple-600' :
-                    'text-orange-600'
-                  }`} />
+                <div className={`p-2 rounded-md bg-${stat.color}-100 group-hover:bg-${stat.color}-200 transition-colors`}>
+                  <Icon className={`h-6 w-6 text-${stat.color}-600`} />
                 </div>
                 <div className="ml-4">
-                  <p className="text-2xl font-bold text-gray-900 group-hover:text-gray-800 transition-colors">{stat.value}</p>
-                  <p className="text-sm font-medium text-gray-600 group-hover:text-gray-700 transition-colors">{stat.name}</p>
+                  <p className="text-2xl font-semibold text-gray-900">{stat.value}</p>
+                  <p className="text-sm text-gray-600">{stat.name}</p>
                 </div>
               </div>
             </Link>

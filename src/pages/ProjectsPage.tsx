@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Server, Calendar, Users, FileText } from 'lucide-react';
+import { Plus, Server, Calendar, Users } from 'lucide-react';
 import { projectsAPI } from '../services/api';
 import { useNotification } from '../contexts/NotificationContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -18,11 +18,9 @@ const ProjectsPage = () => {
 
   const fetchProjects = async () => {
     try {
-      setIsLoading(true);
       const data = await projectsAPI.getAll();
       setProjects(data);
     } catch (error) {
-      console.error('Error fetching projects:', error);
       addNotification({
         type: 'error',
         title: 'Error',
@@ -34,17 +32,7 @@ const ProjectsPage = () => {
   };
 
   useEffect(() => {
-    let isMounted = true;
-    
-    const loadProjects = async () => {
-      await fetchProjects();
-    };
-    
-    if (isMounted) {
-      loadProjects();
-    }
-    
-    return () => { isMounted = false; };
+    fetchProjects();
   }, []);
 
   const handleCreateProject = () => {
@@ -112,10 +100,7 @@ const ProjectsPage = () => {
                 <div className="flex items-center">
                   <Server className="h-8 w-8 text-blue-600 mr-3" />
                   <div>
-                    <div className="flex items-center space-x-2">
-                      <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">{project.ritm_code}</span>
-                    </div>
-                    <h3 className="text-lg font-medium text-gray-900 mt-1">{project.project_name}</h3>
+                    <h3 className="text-lg font-medium text-gray-900">{project.name}</h3>
                     <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(project.status)}`}>
                       {project.status?.replace('_', ' ') || 'active'}
                     </span>
@@ -123,54 +108,26 @@ const ProjectsPage = () => {
                 </div>
               </div>
               
-              <div className="text-gray-600 text-sm mb-4 space-y-1">
-                <div className="flex items-center">
-                  <Users className="h-4 w-4 mr-2" />
-                  Cliente: {project.client}
-                </div>
-                <div className="flex items-center">
-                  <Server className="h-4 w-4 mr-2" />
-                  Datacenter: {project.datacenter}
-                </div>
-                {project.delivery_date && (
-                  <div className="flex items-center">
-                    <Calendar className="h-4 w-4 mr-2" />
-                    Entrega: {new Date(project.delivery_date).toLocaleDateString()}
-                  </div>
-                )}
-              </div>
+              <p className="text-gray-600 text-sm mb-4 line-clamp-2">{project.description}</p>
               
-              <div className="flex items-center justify-between text-xs text-gray-500 mb-4">
-                <div className="flex items-center">
-                  <Calendar className="h-4 w-4 mr-1" />
-                  Creado {new Date(project.created_at).toLocaleDateString()}
-                </div>
-                {project.teams_folder_url && (
-                  <a 
-                    href={project.teams_folder_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:text-blue-800"
-                  >
-                    Teams
-                  </a>
-                )}
+              <div className="flex items-center text-xs text-gray-500 mb-4">
+                <Calendar className="h-4 w-4 mr-1" />
+                Created {new Date(project.created_at).toLocaleDateString()}
               </div>
 
               <div className="flex space-x-2">
                 <Link
                   to={`/projects/${project.id}/orders`}
-                  className="flex-1 inline-flex items-center justify-center px-3 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-colors"
+                  className="flex-1 inline-flex items-center justify-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors"
                 >
-                  <FileText className="h-4 w-4 mr-1" />
-                  Ver Pedidos
+                  View Orders
                 </Link>
                 {(user?.role === 'admin' || user?.role === 'manager') && (
                   <button
                     onClick={() => handleEditProject(project)}
                     className="px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors"
                   >
-                    Editar
+                    Edit
                   </button>
                 )}
               </div>

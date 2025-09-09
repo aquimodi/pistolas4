@@ -11,26 +11,6 @@ class ApiService {
 
   private async handleResponse(response: Response) {
     if (!response.ok) {
-      // Manejar error 401 sin redirección automática
-      if (response.status === 401) {
-        // Solo redirigir si no estamos ya en la página de login
-        if (window.location.pathname !== '/login') {
-          // Usar setTimeout para evitar bucles infinitos
-          setTimeout(() => {
-            window.location.href = '/login';
-          }, 100);
-        }
-        throw new Error('Authentication required');
-      }
-      
-      if (response.status === 429) {
-        throw new Error('Too many requests. Please wait and try again.');
-      }
-      
-      if (response.status === 500) {
-        throw new Error('Server error. Please try again later.');
-      }
-      
       let error;
       try {
         error = await response.json();
@@ -43,7 +23,6 @@ class ApiService {
   }
 
   async get(endpoint: string) {
-    console.log(`API GET: ${API_BASE_URL}${endpoint}`);
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       headers: this.getHeaders(),
       credentials: 'include'
@@ -103,15 +82,12 @@ export const projectsAPI = {
 export const ordersAPI = {
   getByProject: (projectId: string) => apiService.get(`/orders/project/${projectId}`),
   getAll: () => apiService.get('/orders'),
-  getById: (id: string) => apiService.get(`/orders/${id}`),
   create: (data: any) => apiService.post('/orders', data),
   update: (id: string, data: any) => apiService.put(`/orders/${id}`, data)
 };
 
 export const deliveryNotesAPI = {
-  getAll: () => apiService.get('/delivery-notes'),
   getByOrder: (orderId: string) => apiService.get(`/delivery-notes/order/${orderId}`),
-  getById: (id: string) => apiService.get(`/delivery-notes/${id}`),
   create: (data: any) => apiService.post('/delivery-notes', data),
   update: (id: string, data: any) => apiService.put(`/delivery-notes/${id}`, data)
 };

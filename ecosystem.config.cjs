@@ -7,37 +7,29 @@ module.exports = {
       name: 'datacenter-equipment-api',
       script: './server/index.js',
       cwd: process.env.INSTALL_PATH || 'D:/nginx/pistolas',
-      instances: 1, // Changed to 1 for debugging
-      exec_mode: 'fork', // Changed to fork for better debugging
+      instances: 2, // Run 2 instances for load balancing
+      exec_mode: 'cluster',
       
-      // Environment variables
-      env: {
-        NODE_ENV: 'development',
-        PORT: 3001,
-        DB_SERVER: 'localhost',
-        DB_PORT: 1433,
-        DB_DATABASE: 'datacenter_equipment',
-        DB_USER: 'sa',
-        DB_PASSWORD: 'YourStrongPassword123!',
-        JWT_SECRET: 'dev_jwt_secret',
-        ALLOWED_ORIGINS: 'http://localhost:5173,http://localhost:3000,http://107.3.52.136'
-      },
+      // Load environment file
+      env_file: './.env',
       
-      // Production environment
+      // Production environment variables
       env_production: {
         NODE_ENV: 'production',
         PORT: 3001,
         HOST: '0.0.0.0',
-        DB_SERVER: process.env.DB_SERVER || 'localhost',
-        DB_PORT: process.env.DB_PORT || 1433,
-        DB_DATABASE: process.env.DB_DATABASE || 'datacenter_equipment',
-        DB_USER: process.env.DB_USER || 'sa',
-        DB_PASSWORD: process.env.DB_PASSWORD || 'YourStrongPassword123!',
-        JWT_SECRET: process.env.JWT_SECRET || 'your_production_jwt_secret_here',
-        JWT_EXPIRES_IN: '24h',
-        ALLOWED_ORIGINS: 'http://localhost,http://107.3.52.136,https://107.3.52.136',
+        SERVER_IP: '107.3.52.136',
+        ALLOWED_ORIGINS: 'http://localhost,http://localhost:5173,http://107.3.52.136,https://107.3.52.136,https://datacenter.local',
         RATE_LIMIT_WINDOW_MS: 900000,
         RATE_LIMIT_MAX_REQUESTS: 100
+      },
+      
+      // Development environment
+      env_development: {
+        NODE_ENV: 'development',
+        PORT: 3001,
+        SERVER_IP: 'localhost',
+        ALLOWED_ORIGINS: 'http://localhost:5173,http://localhost:3000'
       },
       
       // Monitoring and logging

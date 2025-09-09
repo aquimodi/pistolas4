@@ -40,13 +40,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
         if (response.ok) {
           const data = await response.json();
           setUser(data.user);
-        } else if (response.status !== 401) {
-          // Solo loggear errores que no sean de autorización
+        } else if (response.status === 401) {
+          // 401 is expected when no session exists, don't log as error
+          setUser(null);
+        } else {
+          // Only log non-401 errors
           console.error('Auth verification failed:', response.status);
           setUser(null);
         }
       } catch (error) {
-        // Silenciar errores de red durante verificación inicial
+        // Silence network errors during initial verification
         setUser(null);
       } finally {
         setIsVerifying(false);

@@ -11,6 +11,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { projectsAPI, ordersAPI, equipmentAPI, monitoringAPI } from '../services/api';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 interface DashboardStats {
   projects: number;

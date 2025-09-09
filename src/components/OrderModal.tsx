@@ -4,14 +4,6 @@ import { ordersAPI } from '../services/api';
 import { useNotification } from '../contexts/NotificationContext';
 import LoadingSpinner from './LoadingSpinner';
 
-interface OrderModalProps {
-  order: any;
-  projectId: string;
-  isOpen: boolean;
-  onClose: () => void;
-  onSave: () => void;
-}
-
 const OrderModal: React.FC<OrderModalProps> = ({ order, projectId, isOpen, onClose, onSave }) => {
   const { addNotification } = useNotification();
   const [formData, setFormData] = useState({
@@ -23,6 +15,23 @@ const OrderModal: React.FC<OrderModalProps> = ({ order, projectId, isOpen, onClo
     status: 'pending'
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [projects, setProjects] = useState([]);
+  const [selectedProjectId, setSelectedProjectId] = useState(projectId || '');
+
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        const projectsData = await projectsAPI.getAll();
+        setProjects(projectsData);
+      } catch (error) {
+        console.error('Error fetching projects:', error);
+      }
+    };
+    
+    if (!projectId) {
+      fetchProjects();
+    }
+  }, [projectId]);
 
   useEffect(() => {
     if (order) {
@@ -34,6 +43,7 @@ const OrderModal: React.FC<OrderModalProps> = ({ order, projectId, isOpen, onClo
         expected_delivery_date: order.expected_delivery_date ? order.expected_delivery_date.split('T')[0] : '',
         status: order.status || 'pending'
       });
+      setSelectedProjectId(order.project_id?.toString() || projectId || '');
     } else {
       setFormData({
         order_code: '',
@@ -43,8 +53,9 @@ const OrderModal: React.FC<OrderModalProps> = ({ order, projectId, isOpen, onClo
         expected_delivery_date: '',
         status: 'pending'
       });
+      setSelectedProjectId(projectId || '');
     }
-  }, [order]);
+  }, [order, projectId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,7 +64,7 @@ const OrderModal: React.FC<OrderModalProps> = ({ order, projectId, isOpen, onClo
     try {
       const dataToSubmit = {
         ...formData,
-        project_id: projectId,
+        project_id: selectedProjectId,
         expected_delivery_date: formData.expected_delivery_date || null
       };
 
@@ -104,6 +115,27 @@ const OrderModal: React.FC<OrderModalProps> = ({ order, projectId, isOpen, onClo
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
+              {!projectId && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Proyecto *
+                  </label>
+                  <select
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    value={selectedProjectId}
+                    onChange={(e) => setSelectedProjectId(e.target.value)}
+                  >
+                    <option value="">Seleccionar proyecto...</option>
+                    {projects.map((project: any) => (
+                      <option key={project.id} value={project.id.toString()}>
+                        {project.project_name} ({project.ritm_code})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              
               Código Pedido *
             </label>
             <input

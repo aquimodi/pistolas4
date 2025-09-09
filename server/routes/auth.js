@@ -1,93 +1,138 @@
-import express from 'express';
-import { executeQuery } from '../config/database.js';
-import logger from '../utils/logger.js';
+// API base URL - uses proxy configured in vite.config.ts for development
+// and nginx proxy for production
+const API_BASE_URL = '/api';
 
-const router = express.Router();
-
-// Login
-router.post('/login', async (req, res) => {
-  try {
-    const { username, password } = req.body;
-
-    if (!username || !password) {
-      return res.status(400).json({ error: 'Username and password required' });
-    }
-
-    // Get user from database
-    const users = await executeQuery(
-      'SELECT id, username, email, password, role, is_active FROM users WHERE username = @param0',
-      [username]
-    );
-
-    if (users.length === 0) {
-      logger.warn(`Login attempt with invalid username: ${username} from ${req.ip}`);
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-
-    const user = users[0];
-
-    if (!user.is_active) {
-      logger.warn(`Login attempt with inactive account: ${username} from ${req.ip}`);
-      return res.status(401).json({ error: 'Account is inactive' });
-    }
-
-    // Direct password comparison (PLAIN TEXT)
-    const isValidPassword = password === user.password;
-
-    if (!isValidPassword) {
-      logger.warn(`Login attempt with invalid password for user: ${username} from ${req.ip}`);
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-
-    // Store user in session
-    req.session.user = {
-      id: user.id,
-      username: user.username,
-      email: user.email,
-      role: user.role
+class ApiService {
+  private getHeaders() {
+    return {
+      'Content-Type': 'application/json',
     };
+  }
 
-    // Update last login
-    await executeQuery(
-      'UPDATE users SET last_login = GETDATE() WHERE id = @param0',
-      [user.id]
-    );
-
-    logger.info(`Successful login: ${username} (${user.role}) from ${req.ip}`);
-
-    res.json({
-      user: {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        role: user.role
+  private async handleResponse(response: Response) {
+    if (!response.ok) {
+      // Manejar error 401 sin redirección automática
+      if (response.status === 401) {
+        // Solo redirigir si no estamos ya en la página de login
+        if (window.location.pathname !== '/login') {
+          // Usar setTimeout para evitar bucles infinitos
+          setTimeout(() => {
+            window.location.href = '/login';
+          }, 100);
+        }
+        throw new Error('Authentication required');
       }
-    });
-  } catch (error) {
-    logger.error('Login error:', error);
-    res.status(500).json({ error: 'Login failed' });
-  }
-});
-
-// Logout
-router.post('/logout', (req, res) => {
-  logger.info(`Logout request from ${req.ip}`);
-  req.session.destroy((err) => {
-    if (err) {
-      logger.error('Session destroy error:', err);
-      return res.status(500).json({ error: 'Logout failed' });
+      
+      if (response.status === 429) {
+        throw new Error('Too many requests. Please wait and try again.');
+      }
+      
+      if (response.status === 500) {
+        throw new Error('Server error. Please try again later.');
+      }
+      
+      let error;
+      try {
+        error = await response.json();
+      } catch {
+        error = { error: response.status === 404 ? 'Resource not found' : 'Network error' };
+      }
+      throw new Error(error.error || 'Request failed');
     }
-    res.json({ message: 'Logged out successfully' });
-  });
-});
-
-// Verify session
-router.get('/verify', (req, res) => {
-  if (req.session.user) {
-    res.json({ valid: true, user: req.session.user });
-  } else {
-    res.status(401).json({ error: 'No active session' });
+    return response.json();
   }
-});
 
-export default router;
+  async get(endpoint: string) {
+    console.log(`API GET: ${API_BASE_URL}${endpoint}`);
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      headers: this.getHeaders(),
+      credentials: 'include'
+    });
+    return this.handleResponse(response);
+  }
+
+  async post(endpoint: string, data: any) {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify(data),
+      credentials: 'include'
+    });
+    return this.handleResponse(response);
+  }
+
+  async put(endpoint: string, data: any) {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: 'PUT',
+      headers: this.getHeaders(),
+      body: JSON.stringify(data),
+      credentials: 'include'
+    });
+    return this.handleResponse(response);
+  }
+
+  async delete(endpoint: string) {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: 'DELETE',
+      headers: this.getHeaders(),
+      credentials: 'include'
+    });
+    return this.handleResponse(response);
+  }
+}
+
+const apiService = new ApiService();
+
+export const authAPI = {
+  login: (username: string, password: string) => 
+    apiService.post('/auth/login', { username, password }),
+  logout: () => 
+    apiService.post('/auth/logout', {}),
+  verify: () => 
+    apiService.get('/auth/verify')
+};
+
+export const projectsAPI = {
+  getAll: () => apiService.get('/projects'),
+  getById: (id: string) => apiService.get(`/projects/${id}`),
+  create: (data: any) => apiService.post('/projects', data),
+  update: (id: string, data: any) => apiService.put(`/projects/${id}`, data),
+  delete: (id: string) => apiService.delete(`/projects/${id}`)
+};
+
+export const ordersAPI = {
+  getByProject: (projectId: string) => apiService.get(`/orders/project/${projectId}`),
+  getAll: () => apiService.get('/orders'),
+  getById: (id: string) => apiService.get(`/orders/${id}`),
+  create: (data: any) => apiService.post('/orders', data),
+  update: (id: string, data: any) => apiService.put(`/orders/${id}`, data)
+};
+
+export const deliveryNotesAPI = {
+  getAll: () => apiService.get('/delivery-notes'),
+  getByOrder: (orderId: string) => apiService.get(`/delivery-notes/order/${orderId}`),
+  try {
+    if (req.session && req.session.user) {
+      res.json({ valid: true, user: req.session.user });
+    } else {
+      res.status(401).json({ error: 'No active session' });
+    }
+  } catch (error) {
+    logger.error('Session verification error:', error);
+    res.status(500).json({ error: 'Session verification failed' });
+  }
+  update: (id: string, data: any) => apiService.put(`/delivery-notes/${id}`, data)
+};
+
+export const equipmentAPI = {
+  getByDeliveryNote: (deliveryNoteId: string) => apiService.get(`/equipment/delivery-note/${deliveryNoteId}`),
+  getAll: () => apiService.get('/equipment'),
+  create: (data: any) => apiService.post('/equipment', data),
+  update: (id: string, data: any) => apiService.put(`/equipment/${id}`, data)
+};
+
+export const monitoringAPI = {
+  getStatus: () => apiService.get('/monitoring/status'),
+  getLogs: (params?: any) => apiService.get(`/monitoring/logs${params ? `?${new URLSearchParams(params).toString()}` : ''}`),
+  getMetrics: () => apiService.get('/monitoring/metrics')
+};

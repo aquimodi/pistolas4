@@ -6,6 +6,7 @@ import { useNotification } from '../contexts/NotificationContext';
 import { useAuth } from '../contexts/AuthContext';
 import Breadcrumb from '../components/Breadcrumb';
 import ProjectModal from '../components/ProjectModal';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const ProjectsPage = () => {
   const { user } = useAuth();

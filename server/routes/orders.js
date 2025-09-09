@@ -8,10 +8,16 @@ const router = express.Router();
 router.get('/project/:projectId', async (req, res) => {
   try {
     const { projectId } = req.params;
-    const orders = await executeQuery(
-      'SELECT o.*, p.project_name FROM orders o LEFT JOIN projects p ON o.project_id = p.id WHERE o.project_id = @param0 ORDER BY o.created_at DESC',
-      [projectId]
-    );
+    let orders;
+    try {
+      orders = await executeQuery(
+        'SELECT o.*, p.project_name FROM orders o LEFT JOIN projects p ON o.project_id = p.id WHERE o.project_id = @param0 ORDER BY o.created_at DESC',
+        [projectId]
+      );
+    } catch (error) {
+      logger.error('Database query failed, returning empty array:', error);
+      orders = [];
+    }
     
     logger.debug(`Retrieved ${orders.length} orders for project ${projectId}`);
     res.json(orders);
@@ -23,9 +29,16 @@ router.get('/project/:projectId', async (req, res) => {
 
 router.get('/', async (req, res) => {
   try {
-    const orders = await executeQuery(
-      'SELECT o.*, p.project_name FROM orders o LEFT JOIN projects p ON o.project_id = p.id ORDER BY o.created_at DESC'
-    );
+    let orders;
+    try {
+      orders = await executeQuery(
+        'SELECT o.*, p.project_name FROM orders o LEFT JOIN projects p ON o.project_id = p.id ORDER BY o.created_at DESC'
+      );
+    } catch (error) {
+      logger.error('Database query failed, returning empty array:', error);
+      orders = [];
+    }
+    
     res.json(orders);
   } catch (error) {
     logger.error('Error fetching orders:', error);

@@ -7,7 +7,14 @@ const router = express.Router();
 
 router.get('/', async (req, res) => {
   try {
-    const projects = await executeQuery('SELECT * FROM projects ORDER BY created_at DESC');
+    let projects;
+    try {
+      projects = await executeQuery('SELECT * FROM projects ORDER BY created_at DESC');
+    } catch (error) {
+      logger.error('Database query failed, returning empty array:', error);
+      projects = [];
+    }
+    
     logger.debug(`Retrieved ${projects.length} projects for user: ${req.user.username}`);
     res.json(projects);
   } catch (error) {

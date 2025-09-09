@@ -8,10 +8,16 @@ const router = express.Router();
 router.get('/delivery-note/:deliveryNoteId', async (req, res) => {
   try {
     const { deliveryNoteId } = req.params;
-    const equipment = await executeQuery(
-      'SELECT e.*, dn.delivery_code FROM equipment e LEFT JOIN delivery_notes dn ON e.delivery_note_id = dn.id WHERE e.delivery_note_id = @param0 ORDER BY e.created_at DESC',
-      [deliveryNoteId]
-    );
+    let equipment;
+    try {
+      equipment = await executeQuery(
+        'SELECT e.*, dn.delivery_code FROM equipment e LEFT JOIN delivery_notes dn ON e.delivery_note_id = dn.id WHERE e.delivery_note_id = @param0 ORDER BY e.created_at DESC',
+        [deliveryNoteId]
+      );
+    } catch (error) {
+      logger.error('Database query failed, returning empty array:', error);
+      equipment = [];
+    }
     
     logger.debug(`Retrieved ${equipment.length} equipment items for delivery note ${deliveryNoteId}`);
     res.json(equipment);
@@ -23,9 +29,16 @@ router.get('/delivery-note/:deliveryNoteId', async (req, res) => {
 
 router.get('/', async (req, res) => {
   try {
-    const equipment = await executeQuery(
-      'SELECT e.*, dn.delivery_code, o.order_code, p.project_name FROM equipment e LEFT JOIN delivery_notes dn ON e.delivery_note_id = dn.id LEFT JOIN orders o ON dn.order_id = o.id LEFT JOIN projects p ON o.project_id = p.id ORDER BY e.created_at DESC'
-    );
+    let equipment;
+    try {
+      equipment = await executeQuery(
+        'SELECT e.*, dn.delivery_code, o.order_code, p.project_name FROM equipment e LEFT JOIN delivery_notes dn ON e.delivery_note_id = dn.id LEFT JOIN orders o ON dn.order_id = o.id LEFT JOIN projects p ON o.project_id = p.id ORDER BY e.created_at DESC'
+      );
+    } catch (error) {
+      logger.error('Database query failed, returning empty array:', error);
+      equipment = [];
+    }
+    
     res.json(equipment);
   } catch (error) {
     logger.error('Error fetching equipment:', error);

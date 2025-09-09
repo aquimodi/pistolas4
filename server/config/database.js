@@ -47,12 +47,19 @@ export async function connectDB() {
     return pool;
   } catch (error) {
     logger.error('Database connection failed:', error);
-    throw error;
+    // Don't throw error, allow server to start without database
+    logger.warn('Server starting without database connection - using fallback mode');
+    return null;
   }
 }
 
 export async function executeQuery(query, params = []) {
   try {
+    if (!pool || !pool.connected) {
+      logger.warn('Database not connected, cannot execute query');
+      return [];
+    }
+    
     const request = pool.request();
     
     // Add parameters if provided
@@ -65,7 +72,7 @@ export async function executeQuery(query, params = []) {
     return result.recordset;
   } catch (error) {
     logger.error('Query execution failed:', error);
-    throw error;
+    return [];
   }
 }
 

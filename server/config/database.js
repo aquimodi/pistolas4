@@ -71,8 +71,8 @@ function getMockData(query) {
   if (queryLower.includes('projects') && queryLower.includes('select')) {
     console.log('📊 Mock: Fetching projects');
     return [
-      { id: 1, name: 'Proyecto Centro de Datos A', description: 'Implementación completa', location: 'Madrid', status: 'active', created_at: new Date() },
-      { id: 2, name: 'Proyecto Centro de Datos B', description: 'Actualización de equipos', location: 'Barcelona', status: 'active', created_at: new Date() }
+      { id: 1, ritm_code: 'RITM0012345', project_name: 'Proyecto Centro de Datos A', client: 'Cliente A', datacenter: 'Madrid DC-1', status: 'active', created_at: new Date() },
+      { id: 2, ritm_code: 'RITM0012346', project_name: 'Proyecto Centro de Datos B', client: 'Cliente B', datacenter: 'Barcelona DC-2', status: 'active', created_at: new Date() }
     ];
   }
   
@@ -80,9 +80,10 @@ function getMockData(query) {
     console.log('📊 Mock: Creating new project');
     return [{ 
       id: Math.floor(Math.random() * 1000) + 100, 
-      name: 'Mock Project', 
-      description: 'Mock Description', 
-      location: 'Mock Location', 
+      ritm_code: 'RITM0099999',
+      project_name: 'Mock Project',
+      client: 'Mock Client',
+      datacenter: 'Mock DC-1',
       status: 'active', 
       created_at: new Date() 
     }];

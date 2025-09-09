@@ -119,7 +119,7 @@ router.post('/', authenticateToken, async (req, res) => {
       condition_status || 'new',
       location,
       status || 'received',
-      req.user.id
+      req.user?.id || 1
     ]);
     
     res.status(201).json(result[0]);

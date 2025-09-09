@@ -1,15 +1,15 @@
 import express from 'express';
 import { executeQuery } from '../config/database.js';
 import logger from '../utils/logger.js';
-import { authorizeRole } from '../middleware/auth.js';
+import { authenticateToken, authorizeRole } from '../middleware/auth.js';
 
 const router = express.Router();
 
 // Get all projects
-router.get('/', async (req, res) => {
+router.get('/', authenticateToken, async (req, res) => {
   try {
     const projects = await executeQuery('SELECT * FROM projects ORDER BY created_at DESC');
-    logger.debug(`Retrieved ${projects.length} projects for user: ${req.user.username}`);
+    logger.debug(`Retrieved ${projects.length} projects for user: ${req.user?.username || 'unknown'}`);
     res.json(projects);
   } catch (error) {
     logger.error('Error fetching projects:', error);
@@ -18,7 +18,7 @@ router.get('/', async (req, res) => {
 });
 
 // Get project by ID
-router.get('/:id', async (req, res) => {
+router.get('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const projects = await executeQuery('SELECT * FROM projects WHERE id = @param0', [id]);
@@ -27,7 +27,7 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Project not found' });
     }
     
-    logger.debug(`Retrieved project ${id} for user: ${req.user.username}`);
+    logger.debug(`Retrieved project ${id} for user: ${req.user?.username || 'unknown'}`);
     res.json(projects[0]);
   } catch (error) {
     logger.error('Error fetching project:', error);
@@ -36,7 +36,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // Create project
-router.post('/', authorizeRole(['admin', 'manager']), async (req, res) => {
+router.post('/', authenticateToken, authorizeRole(['admin', 'manager']), async (req, res) => {
   try {
     const { 
       ritm_code, 
@@ -55,10 +55,10 @@ router.post('/', authorizeRole(['admin', 'manager']), async (req, res) => {
 
     const result = await executeQuery(
       'INSERT INTO projects (ritm_code, project_name, client, datacenter, delivery_date, teams_folder_url, excel_file_path, status, created_by, created_at) OUTPUT INSERTED.* VALUES (@param0, @param1, @param2, @param3, @param4, @param5, @param6, @param7, @param8, GETDATE())',
-      [ritm_code, project_name, client, datacenter, delivery_date, teams_folder_url, excel_file_path, status, req.user.id]
+      [ritm_code, project_name, client, datacenter, delivery_date, teams_folder_url, excel_file_path, status, req.user?.id || 1]
     );
 
-    logger.info(`Project created: ${project_name} by ${req.user.username}`);
+    logger.info(`Project created: ${project_name} by ${req.user?.username || 'unknown'}`);
     res.status(201).json(result[0]);
   } catch (error) {
     logger.error('Error creating project:', error);
@@ -67,7 +67,7 @@ router.post('/', authorizeRole(['admin', 'manager']), async (req, res) => {
 });
 
 // Update project
-router.put('/:id', authorizeRole(['admin', 'manager']), async (req, res) => {
+router.put('/:id', authenticateToken, authorizeRole(['admin', 'manager']), async (req, res) => {
   try {
     const { id } = req.params;
     const { 
@@ -90,7 +90,7 @@ router.put('/:id', authorizeRole(['admin', 'manager']), async (req, res) => {
       return res.status(404).json({ error: 'Project not found' });
     }
 
-    logger.info(`Project updated: ${id} by ${req.user.username}`);
+    logger.info(`Project updated: ${id} by ${req.user?.username || 'unknown'}`);
     res.json(result[0]);
   } catch (error) {
     logger.error('Error updating project:', error);
@@ -99,7 +99,7 @@ router.put('/:id', authorizeRole(['admin', 'manager']), async (req, res) => {
 });
 
 // Delete project
-router.delete('/:id', authorizeRole(['admin']), async (req, res) => {
+router.delete('/:id', authenticateToken, authorizeRole(['admin']), async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -109,7 +109,7 @@ router.delete('/:id', authorizeRole(['admin']), async (req, res) => {
       return res.status(404).json({ error: 'Project not found' });
     }
 
-    logger.info(`Project deleted: ${id} by ${req.user.username}`);
+    logger.info(`Project deleted: ${id} by ${req.user?.username || 'unknown'}`);
     res.json({ message: 'Project deleted successfully' });
   } catch (error) {
     logger.error('Error deleting project:', error);

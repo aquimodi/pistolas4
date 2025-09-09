@@ -94,7 +94,7 @@ router.post('/', authenticateToken, async (req, res) => {
       description,
       expected_delivery_date,
       status || 'pending',
-      req.user.id
+      req.user?.id || 1
     ]);
     
     res.status(201).json(result[0]);

@@ -49,24 +49,6 @@ process.on('SIGINT', () => {
   console.log('🛑 SIGINT received, shutting down gracefully');
   process.exit(0);
 });
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutos
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 1000, // Límite más alto para operaciones normales
-  message: 'Too many requests from this IP, please try again later.',
-  standardHeaders: true,
-  legacyHeaders: false,
-  // Excluir rutas normales de la API del rate limiting agresivo
-  skip: (req) => {
-    return req.path === '/api/auth/verify' || 
-           req.path === '/health' ||
-           req.path.startsWith('/api/projects') ||
-           req.path.startsWith('/api/orders') ||
-           req.path.startsWith('/api/delivery-notes') ||
-           req.path.startsWith('/api/equipment') ||
-           req.path.startsWith('/api/monitoring');
-  }
-});
 
 // Special rate limiting for login endpoint
 const loginLimiter = rateLimit({
@@ -108,15 +90,6 @@ app.use(session({
   }
 }));
 
-// Solo aplicar rate limiting general a rutas no excluidas
-app.use((req, res, next) => {
-  // Aplicar rate limiting específico solo para login
-  if (req.path === '/api/auth/login') {
-    return loginLimiter(req, res, next);
-  }
-  // Para todas las demás rutas, usar límite más permisivo
-  next();
-});
 app.use(morgan('combined'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -137,6 +110,8 @@ app.get('/', (req, res) => {
   });
 });
 // Routes
+// Apply rate limiting only to login route
+app.use('/api/auth/login', loginLimiter);
 app.use('/api/auth', authRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/orders', orderRoutes);

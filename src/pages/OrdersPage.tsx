@@ -24,7 +24,7 @@ const OrdersPage = () => {
     try {
       setIsLoading(true);
       const [projectsResponse, ordersResponse] = await Promise.all([
-        projectsAPI.getAll()
+        projectsAPI.getAll(),
         projectId ? ordersAPI.getByProject(projectId) : ordersAPI.getAll(),
       ]);
       
@@ -82,7 +82,7 @@ const OrdersPage = () => {
       order.order_code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.vendor?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.description?.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch && matchesProject;
+    return matchesSearch;
   });
 
   if (isLoading) {
@@ -256,7 +256,7 @@ const OrdersPage = () => {
                 <Plus className="h-4 w-4 mr-2" />
                 Nuevo Pedido
               </button>
-                    </div>
+            </div>
           )}
         </div>
       )}
@@ -271,5 +271,8 @@ const OrdersPage = () => {
           onSave={handleOrderSaved}
         />
       )}
-      </div>
+    </div>
   );
+};
+
+export default OrdersPage;

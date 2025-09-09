@@ -6,6 +6,7 @@ import { useNotification } from '../contexts/NotificationContext';
 import { useAuth } from '../contexts/AuthContext';
 import Breadcrumb from '../components/Breadcrumb';
 import LoadingSpinner from '../components/LoadingSpinner';
+import EquipmentModal from '../components/EquipmentModal';
 
 const EquipmentPage = () => {
   const { deliveryNoteId } = useParams();
@@ -13,6 +14,8 @@ const EquipmentPage = () => {
   const { addNotification } = useNotification();
   const [equipment, setEquipment] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingEquipment, setEditingEquipment] = useState(null);
 
   const fetchEquipment = async () => {
     try {
@@ -38,6 +41,22 @@ const EquipmentPage = () => {
   useEffect(() => {
     fetchEquipment();
   }, [deliveryNoteId]);
+
+  const handleCreateEquipment = () => {
+    setEditingEquipment(null);
+    setIsModalOpen(true);
+  };
+
+  const handleEditEquipment = (item: any) => {
+    setEditingEquipment(item);
+    setIsModalOpen(true);
+  };
+
+  const handleEquipmentSaved = () => {
+    fetchEquipment();
+    setIsModalOpen(false);
+    setEditingEquipment(null);
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -97,6 +116,15 @@ const EquipmentPage = () => {
               }
             </p>
           </div>
+          {deliveryNoteId && deliveryNoteId !== 'all' && (user?.role === 'admin' || user?.role === 'manager' || user?.role === 'operator') && (
+            <button
+              onClick={handleCreateEquipment}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 transition-colors"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Registrar Equipo
+            </button>
+          )}
         </div>
       </div>
 
@@ -154,6 +182,16 @@ const EquipmentPage = () => {
                 {item.specifications && (
                   <div className="mt-4 pt-4 border-t border-gray-200">
                     <p className="text-xs text-gray-500 line-clamp-2">{item.specifications}</p>
+                    {deliveryNoteId && deliveryNoteId !== 'all' && (user?.role === 'admin' || user?.role === 'manager' || user?.role === 'operator') && (
+                      <div className="mt-2">
+                        <button
+                          onClick={() => handleEditEquipment(item)}
+                          className="text-blue-600 hover:text-blue-700 text-xs font-medium transition-colors"
+                        >
+                          Editar Equipo
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -168,6 +206,17 @@ const EquipmentPage = () => {
             <p className="mt-1 text-sm text-gray-500">Equipment items will appear here when they are registered.</p>
           </div>
         </div>
+      )}
+
+      {/* Equipment Modal */}
+      {isModalOpen && deliveryNoteId && deliveryNoteId !== 'all' && (
+        <EquipmentModal
+          equipment={editingEquipment}
+          deliveryNoteId={deliveryNoteId!}
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onSave={handleEquipmentSaved}
+        />
       )}
     </div>
   );

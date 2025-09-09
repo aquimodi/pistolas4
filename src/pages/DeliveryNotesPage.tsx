@@ -3,15 +3,20 @@ import { useParams, Link } from 'react-router-dom';
 import { Plus, FileText, Calendar, Package, Truck, Building } from 'lucide-react';
 import { deliveryNotesAPI, ordersAPI } from '../services/api';
 import { useNotification } from '../contexts/NotificationContext';
+import { useAuth } from '../contexts/AuthContext';
 import Breadcrumb from '../components/Breadcrumb';
 import LoadingSpinner from '../components/LoadingSpinner';
+import DeliveryNoteModal from '../components/DeliveryNoteModal';
 
 const DeliveryNotesPage = () => {
   const { orderId } = useParams();
+  const { user } = useAuth();
   const { addNotification } = useNotification();
   const [order, setOrder] = useState<any>(null);
   const [deliveryNotes, setDeliveryNotes] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingDeliveryNote, setEditingDeliveryNote] = useState(null);
 
   const fetchData = async () => {
     try {
@@ -50,6 +55,22 @@ const DeliveryNotesPage = () => {
   useEffect(() => {
     fetchData();
   }, [orderId]);
+
+  const handleCreateDeliveryNote = () => {
+    setEditingDeliveryNote(null);
+    setIsModalOpen(true);
+  };
+
+  const handleEditDeliveryNote = (note: any) => {
+    setEditingDeliveryNote(note);
+    setIsModalOpen(true);
+  };
+
+  const handleDeliveryNoteSaved = () => {
+    fetchData();
+    setIsModalOpen(false);
+    setEditingDeliveryNote(null);
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -94,6 +115,15 @@ const DeliveryNotesPage = () => {
               {orderId ? `Order: ${order?.order_number}` : 'Complete overview of all delivery notes'}
             </p>
           </div>
+          {orderId && (user?.role === 'admin' || user?.role === 'manager' || user?.role === 'operator') && (
+            <button
+              onClick={handleCreateDeliveryNote}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 transition-colors"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Nuevo Albarán
+            </button>
+          )}
         </div>
       </div>
 
@@ -148,6 +178,14 @@ const DeliveryNotesPage = () => {
                       <Package className="h-3 w-3 mr-1" />
                       Ver Equipos
                     </Link>
+                    {orderId && (user?.role === 'admin' || user?.role === 'manager' || user?.role === 'operator') && (
+                      <button
+                        onClick={() => handleEditDeliveryNote(note)}
+                        className="text-blue-600 hover:text-blue-700 text-sm font-medium transition-colors"
+                      >
+                        Editar
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -161,6 +199,17 @@ const DeliveryNotesPage = () => {
           </div>
         )}
       </div>
+
+      {/* Delivery Note Modal */}
+      {isModalOpen && orderId && (
+        <DeliveryNoteModal
+          deliveryNote={editingDeliveryNote}
+          orderId={orderId!}
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onSave={handleDeliveryNoteSaved}
+        />
+      )}
     </div>
   );
 };

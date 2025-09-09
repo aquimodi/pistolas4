@@ -3,6 +3,7 @@ import { Plus, Search, Calendar, Package, FileText, Edit3, Trash2 } from 'lucide
 import { ordersAPI, projectsAPI } from '../services/api';
 import OrderModal from '../components/OrderModal';
 import LoadingSpinner from '../components/LoadingSpinner';
+import LoadingSpinner from '../components/LoadingSpinner';
 import { useNotification } from '../contexts/NotificationContext';
 
 interface Order {

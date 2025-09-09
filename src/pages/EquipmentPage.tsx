@@ -5,6 +5,7 @@ import { equipmentAPI, deliveryNotesAPI, ordersAPI, projectsAPI } from '../servi
 import { useNotification } from '../contexts/NotificationContext';
 import Breadcrumb from '../components/Breadcrumb';
 import LoadingSpinner from '../components/LoadingSpinner';
+import LoadingSpinner from '../components/LoadingSpinner';
 import EquipmentModal from '../components/EquipmentModal';
 
 const EquipmentPage = () => {

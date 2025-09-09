@@ -52,14 +52,29 @@ process.on('SIGINT', () => {
 // Rate limiting
 const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutos
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 500, // Aumentar límite
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 1000, // Límite más alto para operaciones normales
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
-  // Excluir rutas de verificación de autenticación del rate limiting agresivo
+  // Excluir rutas normales de la API del rate limiting agresivo
   skip: (req) => {
-    return req.path === '/api/auth/verify' || req.path === '/health';
+    return req.path === '/api/auth/verify' || 
+           req.path === '/health' ||
+           req.path.startsWith('/api/projects') ||
+           req.path.startsWith('/api/orders') ||
+           req.path.startsWith('/api/delivery-notes') ||
+           req.path.startsWith('/api/equipment') ||
+           req.path.startsWith('/api/monitoring');
   }
+});
+
+// Special rate limiting for login endpoint
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 5, // Solo 5 intentos de login por ventana
+  message: 'Too many login attempts, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false
 });
 
 // Middleware
@@ -93,7 +108,15 @@ app.use(session({
   }
 }));
 
-app.use(limiter);
+// Solo aplicar rate limiting general a rutas no excluidas
+app.use((req, res, next) => {
+  // Aplicar rate limiting específico solo para login
+  if (req.path === '/api/auth/login') {
+    return loginLimiter(req, res, next);
+  }
+  // Para todas las demás rutas, usar límite más permisivo
+  next();
+});
 app.use(morgan('combined'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));

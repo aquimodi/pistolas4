@@ -22,8 +22,8 @@ const DeliveryNotesPage = () => {
         // Mock order data for breadcrumb
         setOrder({ 
           id: orderId, 
-          order_number: `ORD-2024-${orderId.padStart(3, '0')}`,
-          project_name: 'DC Expansion Phase 1'
+          order_code: `PED-2024-${orderId.padStart(3, '0')}`,
+          project_name: 'Expansión Datacenter Fase 1'
         });
       }
     } catch (error) {
@@ -64,15 +64,15 @@ const DeliveryNotesPage = () => {
       <Breadcrumb items={[
         { label: 'Projects', href: '/projects' },
         { label: order?.project_name || 'Project', href: '/projects' },
-        { label: order?.order_number || 'Order', current: true }
+        { label: order?.order_code || 'Pedido', current: true }
       ]} />
 
       {/* Header */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Delivery Notes</h1>
-            <p className="mt-1 text-gray-600">Order: {order?.order_number}</p>
+            <h1 className="text-2xl font-bold text-gray-900">Albaranes</h1>
+            <p className="mt-1 text-gray-600">Pedido: {order?.order_code}</p>
           </div>
         </div>
       </div>
@@ -80,7 +80,7 @@ const DeliveryNotesPage = () => {
       {/* Delivery Notes List */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-medium text-gray-900">Delivery Notes</h2>
+          <h2 className="text-lg font-medium text-gray-900">Albaranes</h2>
         </div>
         
         {deliveryNotes.length > 0 ? (
@@ -92,21 +92,21 @@ const DeliveryNotesPage = () => {
                     <div className="flex items-center space-x-3">
                       <FileText className="h-5 w-5 text-gray-600" />
                       <div>
-                        <h3 className="text-sm font-medium text-gray-900">{note.delivery_note_number}</h3>
+                        <h3 className="text-sm font-medium text-gray-900">{note.delivery_code}</h3>
                         {note.carrier && (
-                          <p className="text-sm text-gray-600">Carrier: {note.carrier}</p>
+                          <p className="text-sm text-gray-600">Transportista: {note.carrier}</p>
                         )}
                       </div>
                     </div>
                     <div className="mt-2 flex items-center space-x-4 text-xs text-gray-500">
                       <div className="flex items-center">
                         <Calendar className="h-4 w-4 mr-1" />
-                        Delivered {new Date(note.delivery_date).toLocaleDateString()}
+                        Entregado {new Date(note.delivery_date).toLocaleDateString()}
                       </div>
                       {note.tracking_number && (
                         <div className="flex items-center">
                           <Truck className="h-4 w-4 mr-1" />
-                          Tracking: {note.tracking_number}
+                          Seguimiento: {note.tracking_number}
                         </div>
                       )}
                     </div>
@@ -120,7 +120,7 @@ const DeliveryNotesPage = () => {
                       className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors"
                     >
                       <Package className="h-3 w-3 mr-1" />
-                      Equipment
+                      Equipos
                     </Link>
                   </div>
                 </div>
@@ -130,8 +130,8 @@ const DeliveryNotesPage = () => {
         ) : (
           <div className="text-center py-12">
             <FileText className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No delivery notes</h3>
-            <p className="mt-1 text-sm text-gray-500">Delivery notes will appear here when items are received.</p>
+            <h3 className="mt-2 text-sm font-medium text-gray-900">No hay albaranes</h3>
+            <p className="mt-1 text-sm text-gray-500">Los albaranes aparecerán aquí cuando se reciban elementos.</p>
           </div>
         )}
       </div>

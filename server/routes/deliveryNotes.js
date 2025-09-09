@@ -1,128 +1,152 @@
-// API base URL - uses proxy configured in vite.config.ts for development
-// and nginx proxy for production
-const API_BASE_URL = '/api';
+import express from 'express';
+import { executeQuery } from '../config/database.js';
+import logger from '../utils/logger.js';
+import { authenticate, authorizeRole } from '../middleware/auth.js';
 
-class ApiService {
-  private getHeaders() {
-    return {
-      'Content-Type': 'application/json',
-    };
+const router = express.Router();
+
+// All routes require authentication
+router.use(authenticate);
+
+// Get all delivery notes
+router.get('/', authorizeRole(['admin', 'manager', 'operator']), async (req, res) => {
+  try {
+    const result = await executeQuery(`
+      SELECT 
+        dn.*,
+        o.order_code,
+        o.vendor,
+        p.project_name,
+        p.client,
+        COUNT(eq.id) as equipment_count
+      FROM delivery_notes dn
+      LEFT JOIN orders o ON dn.order_id = o.id
+      LEFT JOIN projects p ON o.project_id = p.id
+      LEFT JOIN equipment eq ON eq.delivery_note_id = dn.id
+      GROUP BY dn.id, dn.order_id, dn.delivery_code, dn.estimated_equipment_count,
+               dn.delivery_date, dn.carrier, dn.tracking_number, dn.attached_document_path,
+               dn.notes, dn.status, dn.created_at, dn.updated_at, dn.created_by,
+               o.order_code, o.vendor, p.project_name, p.client
+      ORDER BY dn.created_at DESC
+    `);
+    
+    logger.info(`Retrieved ${result.length} delivery notes`);
+    res.json(result);
+  } catch (error) {
+    logger.error('Error fetching delivery notes:', error);
+    res.status(500).json({ error: 'Failed to fetch delivery notes' });
   }
+});
 
-  private async handleResponse(response: Response) {
-    if (!response.ok) {
-      // Manejar error 401 sin redirección automática
-      if (response.status === 401) {
-        // Solo redirigir si no estamos ya en la página de login
-        if (window.location.pathname !== '/login') {
-          // Usar setTimeout para evitar bucles infinitos
-          setTimeout(() => {
-            window.location.href = '/login';
-          }, 100);
-        }
-        throw new Error('Authentication required');
-      }
-      
-      if (response.status === 429) {
-        throw new Error('Too many requests. Please wait and try again.');
-      }
-      
-      if (response.status === 500) {
-        throw new Error('Server error. Please try again later.');
-      }
-      
-      let error;
-      try {
-        error = await response.json();
-      } catch {
-        error = { error: response.status === 404 ? 'Resource not found' : 'Network error' };
-      }
-      throw new Error(error.error || 'Request failed');
+// Get delivery notes by order ID
+router.get('/order/:orderId', authorizeRole(['admin', 'manager', 'operator']), async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const result = await executeQuery(`
+      SELECT 
+        dn.*,
+        o.order_code,
+        o.vendor,
+        p.project_name,
+        COUNT(eq.id) as equipment_count
+      FROM delivery_notes dn
+      LEFT JOIN orders o ON dn.order_id = o.id
+      LEFT JOIN projects p ON o.project_id = p.id
+      LEFT JOIN equipment eq ON eq.delivery_note_id = dn.id
+      WHERE dn.order_id = @param0
+      GROUP BY dn.id, dn.order_id, dn.delivery_code, dn.estimated_equipment_count,
+               dn.delivery_date, dn.carrier, dn.tracking_number, dn.attached_document_path,
+               dn.notes, dn.status, dn.created_at, dn.updated_at, dn.created_by,
+               o.order_code, o.vendor, p.project_name
+      ORDER BY dn.created_at DESC
+    `, [orderId]);
+    
+    logger.info(`Retrieved ${result.length} delivery notes for order ${orderId}`);
+    res.json(result);
+  } catch (error) {
+    logger.error('Error fetching delivery notes by order:', error);
+    res.status(500).json({ error: 'Failed to fetch delivery notes' });
+  }
+});
+
+// Get delivery note by ID
+router.get('/:id', authorizeRole(['admin', 'manager', 'operator']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await executeQuery(`
+      SELECT 
+        dn.*,
+        o.order_code,
+        o.vendor,
+        p.project_name,
+        p.client
+      FROM delivery_notes dn
+      LEFT JOIN orders o ON dn.order_id = o.id
+      LEFT JOIN projects p ON o.project_id = p.id
+      WHERE dn.id = @param0
+    `, [id]);
+    
+    if (result.length === 0) {
+      return res.status(404).json({ error: 'Delivery note not found' });
     }
-    return response.json();
+    
+    logger.info(`Retrieved delivery note ${id}`);
+    res.json(result[0]);
+  } catch (error) {
+    logger.error('Error fetching delivery note by ID:', error);
+    res.status(500).json({ error: 'Failed to fetch delivery note' });
   }
+});
 
-  async get(endpoint: string) {
-    console.log(`API GET: ${API_BASE_URL}${endpoint}`);
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      headers: this.getHeaders(),
-      credentials: 'include'
-    });
-    return this.handleResponse(response);
+// Create delivery note
+router.post('/', authorizeRole(['admin', 'manager', 'operator']), async (req, res) => {
+  try {
+    const { order_id, delivery_code, estimated_equipment_count, delivery_date, carrier, tracking_number, attached_document_path, notes, status = 'received' } = req.body;
+
+    if (!order_id || !delivery_code) {
+      return res.status(400).json({ error: 'Order ID and delivery code are required' });
+    }
+
+    logger.info(`Creating delivery note: ${delivery_code} for order ${order_id} by ${req.session.user ? req.session.user.username : 'unknown'}`);
+
+    const result = await executeQuery(
+      'INSERT INTO delivery_notes (order_id, delivery_code, estimated_equipment_count, delivery_date, carrier, tracking_number, attached_document_path, notes, status, created_by, created_at) OUTPUT INSERTED.* VALUES (@param0, @param1, @param2, @param3, @param4, @param5, @param6, @param7, @param8, @param9, GETDATE())',
+      [order_id, delivery_code, estimated_equipment_count || 0, delivery_date, carrier, tracking_number, attached_document_path, notes, status, req.session.user ? req.session.user.id : 1]
+    );
+
+    logger.info(`Delivery note created successfully: ${delivery_code}`);
+    res.status(201).json(result[0]);
+  } catch (error) {
+    logger.error('Error creating delivery note:', error);
+    console.error('Create delivery note error details:', error);
+    res.status(500).json({ error: 'Failed to create delivery note' });
   }
+});
 
-  async post(endpoint: string, data: any) {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: 'POST',
-      headers: this.getHeaders(),
-      body: JSON.stringify(data),
-      credentials: 'include'
-    });
-    return this.handleResponse(response);
+// Update delivery note
+router.put('/:id', authorizeRole(['admin', 'manager', 'operator']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { delivery_code, estimated_equipment_count, delivery_date, carrier, tracking_number, attached_document_path, notes, status } = req.body;
+
+    logger.info(`Updating delivery note: ${id} by ${req.session.user ? req.session.user.username : 'unknown'}`);
+
+    const result = await executeQuery(
+      'UPDATE delivery_notes SET delivery_code = @param0, estimated_equipment_count = @param1, delivery_date = @param2, carrier = @param3, tracking_number = @param4, attached_document_path = @param5, notes = @param6, status = @param7, updated_at = GETDATE() OUTPUT INSERTED.* WHERE id = @param8',
+      [delivery_code, estimated_equipment_count || 0, delivery_date, carrier, tracking_number, attached_document_path, notes, status, id]
+    );
+
+    if (result.length === 0) {
+      return res.status(404).json({ error: 'Delivery note not found' });
+    }
+
+    logger.info(`Delivery note updated successfully: ${id}`);
+    res.json(result[0]);
+  } catch (error) {
+    logger.error('Error updating delivery note:', error);
+    console.error('Update delivery note error details:', error);
+    res.status(500).json({ error: 'Failed to update delivery note' });
   }
+});
 
-  async put(endpoint: string, data: any) {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: 'PUT',
-      headers: this.getHeaders(),
-      body: JSON.stringify(data),
-      credentials: 'include'
-    });
-    return this.handleResponse(response);
-  }
-
-  async delete(endpoint: string) {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: 'DELETE',
-      headers: this.getHeaders(),
-      credentials: 'include'
-    });
-    return this.handleResponse(response);
-  }
-}
-
-const apiService = new ApiService();
-
-export const authAPI = {
-  login: (username: string, password: string) => 
-    apiService.post('/auth/login', { username, password }),
-  logout: () => 
-    apiService.post('/auth/logout', {}),
-  verify: () => 
-    apiService.get('/auth/verify')
-};
-
-export const projectsAPI = {
-  getAll: () => apiService.get('/projects'),
-  getById: (id: string) => apiService.get(`/projects/${id}`),
-  create: (data: any) => apiService.post('/projects', data),
-  update: (id: string, data: any) => apiService.put(`/projects/${id}`, data),
-  delete: (id: string) => apiService.delete(`/projects/${id}`)
-};
-
-export const ordersAPI = {
-  getByProject: (projectId: string) => apiService.get(`/orders/project/${projectId}`),
-  getAll: () => apiService.get('/orders'),
-  create: (data: any) => apiService.post('/orders', data),
-  update: (id: string, data: any) => apiService.put(`/orders/${id}`, data)
-};
-
-export const deliveryNotesAPI = {
-  getAll: () => apiService.get('/delivery-notes'),
-  getByOrder: (orderId: string) => apiService.get(`/delivery-notes/order/${orderId}`),
-  create: (data: any) => apiService.post('/delivery-notes', data),
-  update: (id: string, data: any) => apiService.put(`/delivery-notes/${id}`, data)
-};
-
-export const equipmentAPI = {
-  getByDeliveryNote: (deliveryNoteId: string) => apiService.get(`/equipment/delivery-note/${deliveryNoteId}`),
-  getAll: () => apiService.get('/equipment'),
-  create: (data: any) => apiService.post('/equipment', data),
-  update: (id: string, data: any) => apiService.put(`/equipment/${id}`, data)
-};
-
-export const monitoringAPI = {
-  getStatus: () => apiService.get('/monitoring/status'),
-  getLogs: (params?: any) => apiService.get(`/monitoring/logs${params ? `?${new URLSearchParams(params).toString()}` : ''}`),
-  getMetrics: () => apiService.get('/monitoring/metrics')
-};
+export default router;

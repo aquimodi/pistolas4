@@ -1,127 +1,200 @@
-// API base URL - uses proxy configured in vite.config.ts for development
-// and nginx proxy for production
-const API_BASE_URL = '/api';
+import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
+import { FileText, Plus } from 'lucide-react';
+import { useNotification } from '../contexts/NotificationContext';
+import { ordersAPI, projectsAPI } from '../services/api';
+import LoadingSpinner from '../components/LoadingSpinner';
+import OrderModal from '../components/OrderModal';
 
-class ApiService {
-  private getHeaders() {
-    return {
-      'Content-Type': 'application/json',
-    };
-  }
+interface OrdersPageProps {}
 
-  private async handleResponse(response: Response) {
-    if (!response.ok) {
-      // Manejar error 401 sin redirección automática
-      if (response.status === 401) {
-        // Solo redirigir si no estamos ya en la página de login
-        if (window.location.pathname !== '/login') {
-          // Usar setTimeout para evitar bucles infinitos
-          setTimeout(() => {
-            window.location.href = '/login';
-          }, 100);
-        }
-        throw new Error('Authentication required');
+const OrdersPage: React.FC<OrdersPageProps> = () => {
+  const { projectId } = useParams();
+  const { addNotification } = useNotification();
+  const [orders, setOrders] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [project, setProject] = useState(null);
+
+  useEffect(() => {
+    fetchData();
+  }, [projectId]);
+
+  const fetchData = async () => {
+    try {
+      if (projectId && projectId !== 'all') {
+        // Fetch project details
+        const projectData = await projectsAPI.getById(projectId);
+        setProject(projectData);
+        
+        // Fetch orders for specific project
+        const ordersData = await ordersAPI.getByProject(projectId);
+        setOrders(ordersData);
+      } else {
+        // Show all orders
+        const data = await ordersAPI.getAll();
+        setOrders(data);
       }
-      
-      if (response.status === 429) {
-        throw new Error('Too many requests. Please wait and try again.');
-      }
-      
-      if (response.status === 500) {
-        throw new Error('Server error. Please try again later.');
-      }
-      
-      let error;
-      try {
-        error = await response.json();
-      } catch {
-        error = { error: response.status === 404 ? 'Resource not found' : 'Network error' };
-      }
-      throw new Error(error.error || 'Request failed');
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+      addNotification({
+        type: 'error',
+        title: 'Error',
+        message: 'Failed to fetch orders'
+      });
+      setOrders([]);
+    } finally {
+      setIsLoading(false);
     }
-    return response.json();
+  };
+
+  const handleCreateOrder = () => {
+    setSelectedOrder(null);
+    setIsModalOpen(true);
+  };
+
+  const handleEditOrder = (order: any) => {
+    setSelectedOrder(order);
+    setIsModalOpen(true);
+  };
+
+  const handleModalClose = () => {
+    setIsModalOpen(false);
+    setSelectedOrder(null);
+  };
+
+  const handleModalSave = async (data: any) => {
+    try {
+      if (selectedOrder) {
+        await ordersAPI.update(selectedOrder.id, data);
+        addNotification({
+          type: 'success',
+          title: 'Success',
+          message: 'Order updated successfully'
+        });
+      } else {
+        await ordersAPI.create({ ...data, project_id: projectId });
+        addNotification({
+          type: 'success',
+          title: 'Success',
+          message: 'Order created successfully'
+        });
+      }
+      await fetchData();
+      handleModalClose();
+    } catch (error: any) {
+      addNotification({
+        type: 'error',
+        title: 'Error',
+        message: error.message || 'Failed to save order'
+      });
+    }
+  };
+
+  if (isLoading) {
+    return <LoadingSpinner />;
   }
 
-  async get(endpoint: string) {
-    console.log(`API GET: ${API_BASE_URL}${endpoint}`);
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      headers: this.getHeaders(),
-      credentials: 'include'
-    });
-    return this.handleResponse(response);
-  }
+  return (
+    <div className="p-6">
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">
+            {projectId && projectId !== 'all' ? 'Orders for Project' : 'All Orders'}
+          </h1>
+          {project && (
+            <p className="text-gray-600 mt-1">{project.project_name} - {project.client}</p>
+          )}
+        </div>
+        {projectId && projectId !== 'all' && (
+          <button
+            onClick={handleCreateOrder}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2 transition-colors"
+          >
+            <Plus className="h-5 w-5" />
+            <span>New Order</span>
+          </button>
+        )}
+      </div>
 
-  async post(endpoint: string, data: any) {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: 'POST',
-      headers: this.getHeaders(),
-      body: JSON.stringify(data),
-      credentials: 'include'
-    });
-    return this.handleResponse(response);
-  }
-
-  async put(endpoint: string, data: any) {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: 'PUT',
-      headers: this.getHeaders(),
-      body: JSON.stringify(data),
-      credentials: 'include'
-    });
-    return this.handleResponse(response);
-  }
-
-  async delete(endpoint: string) {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: 'DELETE',
-      headers: this.getHeaders(),
-      credentials: 'include'
-    });
-    return this.handleResponse(response);
-  }
-}
-
-const apiService = new ApiService();
-
-export const authAPI = {
-  login: (username: string, password: string) => 
-    apiService.post('/auth/login', { username, password }),
-  logout: () => 
-    apiService.post('/auth/logout', {}),
-  verify: () => 
-    apiService.get('/auth/verify')
-};
-
-export const projectsAPI = {
-  getAll: () => apiService.get('/projects'),
-  getById: (id: string) => apiService.get(`/projects/${id}`),
-  create: (data: any) => apiService.post('/projects', data),
-  update: (id: string, data: any) => apiService.put(`/projects/${id}`, data),
-  delete: (id: string) => apiService.delete(`/projects/${id}`)
-};
-
-export const ordersAPI = {
-  getByProject: (projectId: string) => apiService.get(`/orders/project/${projectId}`),
-  getAll: () => apiService.get('/orders'),
-  create: (data: any) => apiService.post('/orders', data),
-  update: (id: string, data: any) => apiService.put(`/orders/${id}`, data)
-};
-
-export const deliveryNotesAPI = {
-  getAll: () => apiService.get('/delivery-notes'),
-  getByOrder: (orderId: string) => apiService.get(`/delivery-notes/order/${orderId}`),
-  create: (data: any) => apiService.post('/delivery-notes', data),
-  update: (id: string, data: any) => apiService.put(`/delivery-notes/${id}`, data)
-};
-
-export const equipmentAPI = {
-  getByDeliveryNote: (deliveryNoteId: string) => apiService.get(`/equipment/delivery-note/${deliveryNoteId}`),
+      <div className="bg-white rounded-lg shadow">
+        {orders.length > 0 ? (
+          <div className="divide-y divide-gray-200">
+            {orders.map((order: any) => (
+              <div key={order.id} className="p-6 hover:bg-gray-50 transition-colors">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-3">
+                      <FileText className="h-5 w-5 text-gray-600" />
+                      <div>
                         <h3 className="text-sm font-medium text-gray-900">{order.order_code || order.order_number}</h3>
-  update: (id: string, data: any) => apiService.put(`/equipment/${id}`, data)
+                        <p className="text-sm text-gray-600">Vendor: {order.vendor}</p>
+                        <p className="text-sm text-gray-600">Equipos: {order.equipment_count}</p>
+                        {!projectId && order.project_name && (
+                          <p className="text-xs text-gray-500">Project: {order.project_name}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                      order.status === 'delivered' ? 'bg-green-100 text-green-800' :
+                      order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}>
+                      {order.status}
+                    </span>
+                    <button
+                      onClick={() => handleEditOrder(order)}
+                      className="text-blue-600 hover:text-blue-800 font-medium text-sm"
+                    >
+                      Edit
+                    </button>
+                  </div>
+                </div>
+                {order.expected_delivery_date && (
+                  <p className="text-xs text-gray-500 mt-2">
+                    Expected: {new Date(order.expected_delivery_date).toLocaleDateString()}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="p-12 text-center">
+            <FileText className="mx-auto h-12 w-12 text-gray-400" />
+            <h3 className="mt-2 text-sm font-medium text-gray-900">No orders</h3>
+            <p className="mt-1 text-sm text-gray-500">
+              {projectId && projectId !== 'all' 
+                ? 'Get started by creating a new order for this project.'
+                : 'No orders found in the system.'
+              }
+            </p>
+            {projectId && projectId !== 'all' && (
+              <div className="mt-6">
+                <button
+                  onClick={handleCreateOrder}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2 mx-auto transition-colors"
+                >
+                  <Plus className="h-5 w-5" />
+                  <span>New Order</span>
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <OrderModal
+        isOpen={isModalOpen}
+        onClose={handleModalClose}
+        onSave={handleModalSave}
+        order={selectedOrder}
+        projectId={projectId}
+      />
+    </div>
+  );
 };
 
-export const monitoringAPI = {
-  getStatus: () => apiService.get('/monitoring/status'),
-  getLogs: (params?: any) => apiService.get(`/monitoring/logs${params ? `?${new URLSearchParams(params).toString()}` : ''}`),
-  getMetrics: () => apiService.get('/monitoring/metrics')
-};
+export default OrdersPage;

@@ -103,6 +103,7 @@ export const projectsAPI = {
 export const ordersAPI = {
   getByProject: (projectId: string) => apiService.get(`/orders/project/${projectId}`),
   getAll: () => apiService.get('/orders'),
+  getById: (id: string) => apiService.get(`/orders/${id}`),
   create: (data: any) => apiService.post('/orders', data),
   update: (id: string, data: any) => apiService.put(`/orders/${id}`, data)
 };
@@ -110,6 +111,7 @@ export const ordersAPI = {
 export const deliveryNotesAPI = {
   getAll: () => apiService.get('/delivery-notes'),
   getByOrder: (orderId: string) => apiService.get(`/delivery-notes/order/${orderId}`),
+  getById: (id: string) => apiService.get(`/delivery-notes/${id}`),
   create: (data: any) => apiService.post('/delivery-notes', data),
   update: (id: string, data: any) => apiService.put(`/delivery-notes/${id}`, data)
 };

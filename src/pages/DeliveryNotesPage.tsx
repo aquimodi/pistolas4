@@ -1,129 +1,205 @@
-// API base URL - uses proxy configured in vite.config.ts for development
-// and nginx proxy for production
-const API_BASE_URL = '/api';
+import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
+import { FileText, Plus } from 'lucide-react';
+import { useNotification } from '../contexts/NotificationContext';
+import { deliveryNotesAPI, ordersAPI } from '../services/api';
+import LoadingSpinner from '../components/LoadingSpinner';
+import DeliveryNoteModal from '../components/DeliveryNoteModal';
 
-class ApiService {
-  private getHeaders() {
-    return {
-      'Content-Type': 'application/json',
-    };
-  }
+interface DeliveryNotesPageProps {}
 
-  private async handleResponse(response: Response) {
-    if (!response.ok) {
-      // Manejar error 401 sin redirección automática
-      if (response.status === 401) {
-        // Solo redirigir si no estamos ya en la página de login
-        if (window.location.pathname !== '/login') {
-          // Usar setTimeout para evitar bucles infinitos
-          setTimeout(() => {
-            window.location.href = '/login';
-          }, 100);
-        }
-        throw new Error('Authentication required');
+const DeliveryNotesPage: React.FC<DeliveryNotesPageProps> = () => {
+  const { orderId } = useParams();
+  const { addNotification } = useNotification();
+  const [deliveryNotes, setDeliveryNotes] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedDeliveryNote, setSelectedDeliveryNote] = useState(null);
+  const [order, setOrder] = useState(null);
+
+  useEffect(() => {
+    fetchData();
+  }, [orderId]);
+
+  const fetchData = async () => {
+    try {
+      if (orderId && orderId !== 'all') {
+        // Fetch order details
+        const orderData = await ordersAPI.getById(orderId);
+        setOrder(orderData);
+        
+        // Fetch delivery notes for specific order
+        const deliveryNotesData = await deliveryNotesAPI.getByOrder(orderId);
+        setDeliveryNotes(deliveryNotesData);
+      } else {
+        // Show all delivery notes
+        const data = await deliveryNotesAPI.getAll();
+        setDeliveryNotes(data);
       }
-      
-      if (response.status === 429) {
-        throw new Error('Too many requests. Please wait and try again.');
-      }
-      
-      if (response.status === 500) {
-        throw new Error('Server error. Please try again later.');
-      }
-      
-      let error;
-      try {
-        error = await response.json();
-      } catch {
-        error = { error: response.status === 404 ? 'Resource not found' : 'Network error' };
-      }
-      throw new Error(error.error || 'Request failed');
+    } catch (error) {
+      console.error('Error fetching delivery notes:', error);
+      addNotification({
+        type: 'error',
+        title: 'Error',
+        message: 'Failed to fetch delivery notes'
+      });
+      setDeliveryNotes([]);
+    } finally {
+      setIsLoading(false);
     }
-    return response.json();
+  };
+
+  const handleCreateDeliveryNote = () => {
+    setSelectedDeliveryNote(null);
+    setIsModalOpen(true);
+  };
+
+  const handleEditDeliveryNote = (deliveryNote: any) => {
+    setSelectedDeliveryNote(deliveryNote);
+    setIsModalOpen(true);
+  };
+
+  const handleModalClose = () => {
+    setIsModalOpen(false);
+    setSelectedDeliveryNote(null);
+  };
+
+  const handleModalSave = async (data: any) => {
+    try {
+      if (selectedDeliveryNote) {
+        await deliveryNotesAPI.update(selectedDeliveryNote.id, data);
+        addNotification({
+          type: 'success',
+          title: 'Success',
+          message: 'Delivery note updated successfully'
+        });
+      } else {
+        await deliveryNotesAPI.create({ ...data, order_id: orderId });
+        addNotification({
+          type: 'success',
+          title: 'Success',
+          message: 'Delivery note created successfully'
+        });
+      }
+      await fetchData();
+      handleModalClose();
+    } catch (error: any) {
+      addNotification({
+        type: 'error',
+        title: 'Error',
+        message: error.message || 'Failed to save delivery note'
+      });
+    }
+  };
+
+  if (isLoading) {
+    return <LoadingSpinner />;
   }
 
-  async get(endpoint: string) {
-    console.log(`API GET: ${API_BASE_URL}${endpoint}`);
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      headers: this.getHeaders(),
-      credentials: 'include'
-    });
-    return this.handleResponse(response);
-  }
+  return (
+    <div className="p-6">
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">
+            {orderId && orderId !== 'all' ? 'Delivery Notes for Order' : 'All Delivery Notes'}
+          </h1>
+          {order && (
+            <p className="text-gray-600 mt-1">Order: {order.order_code} - {order.vendor}</p>
+          )}
+        </div>
+        {orderId && orderId !== 'all' && (
+          <button
+            onClick={handleCreateDeliveryNote}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2 transition-colors"
+          >
+            <Plus className="h-5 w-5" />
+            <span>New Delivery Note</span>
+          </button>
+        )}
+      </div>
 
-  async post(endpoint: string, data: any) {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: 'POST',
-      headers: this.getHeaders(),
-      body: JSON.stringify(data),
-      credentials: 'include'
-    });
-    return this.handleResponse(response);
-  }
-
-  async put(endpoint: string, data: any) {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: 'PUT',
-      headers: this.getHeaders(),
-      body: JSON.stringify(data),
-      credentials: 'include'
-    });
-    return this.handleResponse(response);
-  }
-
-  async delete(endpoint: string) {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: 'DELETE',
-      headers: this.getHeaders(),
-      credentials: 'include'
-    });
-    return this.handleResponse(response);
-  }
-}
-
-const apiService = new ApiService();
-
-export const authAPI = {
-  login: (username: string, password: string) => 
-    apiService.post('/auth/login', { username, password }),
-  logout: () => 
-    apiService.post('/auth/logout', {}),
-  verify: () => 
-    apiService.get('/auth/verify')
-};
-
-export const projectsAPI = {
-  getAll: () => apiService.get('/projects'),
-  getById: (id: string) => apiService.get(`/projects/${id}`),
-  create: (data: any) => apiService.post('/projects', data),
-  update: (id: string, data: any) => apiService.put(`/projects/${id}`, data),
-  delete: (id: string) => apiService.delete(`/projects/${id}`)
-};
-
-export const ordersAPI = {
-  getByProject: (projectId: string) => apiService.get(`/orders/project/${projectId}`),
-  getAll: () => apiService.get('/orders'),
-  create: (data: any) => apiService.post('/orders', data),
-  update: (id: string, data: any) => apiService.put(`/orders/${id}`, data)
-};
-
-export const deliveryNotesAPI = {
-  getAll: () => apiService.get('/delivery-notes'),
-  getByOrder: (orderId: string) => apiService.get(`/delivery-notes/order/${orderId}`),
-  create: (data: any) => apiService.post('/delivery-notes', data),
-  update: (id: string, data: any) => apiService.put(`/delivery-notes/${id}`, data)
-};
-
-export const equipmentAPI = {
-  getByDeliveryNote: (deliveryNoteId: string) => apiService.get(`/equipment/delivery-note/${deliveryNoteId}`),
+      <div className="bg-white rounded-lg shadow">
+        {deliveryNotes.length > 0 ? (
+          <div className="divide-y divide-gray-200">
+            {deliveryNotes.map((note: any) => (
+              <div key={note.id} className="p-6 hover:bg-gray-50 transition-colors">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-3">
+                      <FileText className="h-5 w-5 text-gray-600" />
+                      <div>
                         <h3 className="text-sm font-medium text-gray-900">{note.delivery_code || note.delivery_note_number}</h3>
                         <p className="text-sm text-gray-600">Equipos estimados: {note.estimated_equipment_count}</p>
-  create: (data: any) => apiService.post('/equipment', data),
-  update: (id: string, data: any) => apiService.put(`/equipment/${id}`, data)
+                        {note.carrier && (
+                          <p className="text-sm text-gray-600">Carrier: {note.carrier}</p>
+                        )}
+                        {!orderId && note.order_number && (
+                          <p className="text-xs text-gray-500">Order: {note.order_number}</p>
+                        )}
+                        {!orderId && note.project_name && (
+                          <p className="text-xs text-gray-500">Project: {note.project_name}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                      note.status === 'delivered' ? 'bg-green-100 text-green-800' :
+                      note.status === 'in_transit' ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}>
+                      {note.status}
+                    </span>
+                    <button
+                      onClick={() => handleEditDeliveryNote(note)}
+                      className="text-blue-600 hover:text-blue-800 font-medium text-sm"
+                    >
+                      Edit
+                    </button>
+                  </div>
+                </div>
+                {note.delivery_date && (
+                  <p className="text-xs text-gray-500 mt-2">
+                    Delivered: {new Date(note.delivery_date).toLocaleDateString()}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="p-12 text-center">
+            <FileText className="mx-auto h-12 w-12 text-gray-400" />
+            <h3 className="mt-2 text-sm font-medium text-gray-900">No delivery notes</h3>
+            <p className="mt-1 text-sm text-gray-500">
+              {orderId && orderId !== 'all' 
+                ? 'Get started by creating a new delivery note for this order.'
+                : 'No delivery notes found in the system.'
+              }
+            </p>
+            {orderId && orderId !== 'all' && (
+              <div className="mt-6">
+                <button
+                  onClick={handleCreateDeliveryNote}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2 mx-auto transition-colors"
+                >
+                  <Plus className="h-5 w-5" />
+                  <span>New Delivery Note</span>
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <DeliveryNoteModal
+        isOpen={isModalOpen}
+        onClose={handleModalClose}
+        onSave={handleModalSave}
+        deliveryNote={selectedDeliveryNote}
+        orderId={orderId}
+      />
+    </div>
+  );
 };
 
-export const monitoringAPI = {
-  getStatus: () => apiService.get('/monitoring/status'),
-  getLogs: (params?: any) => apiService.get(`/monitoring/logs${params ? `?${new URLSearchParams(params).toString()}` : ''}`),
-  getMetrics: () => apiService.get('/monitoring/metrics')
-};
+export default DeliveryNotesPage;

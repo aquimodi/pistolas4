@@ -1,128 +1,166 @@
-// API base URL - uses proxy configured in vite.config.ts for development
-// and nginx proxy for production
-const API_BASE_URL = '/api';
+import express from 'express';
+import { executeQuery } from '../config/database.js';
+import logger from '../utils/logger.js';
+import { authenticate, authorizeRole } from '../middleware/auth.js';
 
-class ApiService {
-  private getHeaders() {
-    return {
-      'Content-Type': 'application/json',
-    };
+const router = express.Router();
+
+// All routes require authentication
+router.use(authenticate);
+
+// Get all equipment
+router.get('/', authorizeRole(['admin', 'manager', 'operator']), async (req, res) => {
+  try {
+    const result = await executeQuery(`
+      SELECT 
+        eq.*,
+        dn.delivery_code,
+        o.order_code,
+        o.vendor,
+        p.project_name,
+        p.client
+      FROM equipment eq
+      LEFT JOIN delivery_notes dn ON eq.delivery_note_id = dn.id
+      LEFT JOIN orders o ON dn.order_id = o.id
+      LEFT JOIN projects p ON o.project_id = p.id
+      ORDER BY eq.created_at DESC
+    `);
+    
+    logger.info(`Retrieved ${result.length} equipment items`);
+    res.json(result);
+  } catch (error) {
+    logger.error('Error fetching equipment:', error);
+    res.status(500).json({ error: 'Failed to fetch equipment' });
   }
+});
 
-  private async handleResponse(response: Response) {
-    if (!response.ok) {
-      // Manejar error 401 sin redirección automática
-      if (response.status === 401) {
-        // Solo redirigir si no estamos ya en la página de login
-        if (window.location.pathname !== '/login') {
-          // Usar setTimeout para evitar bucles infinitos
-          setTimeout(() => {
-            window.location.href = '/login';
-          }, 100);
-        }
-        throw new Error('Authentication required');
-      }
-      
-      if (response.status === 429) {
-        throw new Error('Too many requests. Please wait and try again.');
-      }
-      
-      if (response.status === 500) {
-        throw new Error('Server error. Please try again later.');
-      }
-      
-      let error;
-      try {
-        error = await response.json();
-      } catch {
-        error = { error: response.status === 404 ? 'Resource not found' : 'Network error' };
-      }
-      throw new Error(error.error || 'Request failed');
+// Get equipment by delivery note ID
+router.get('/delivery-note/:deliveryNoteId', authorizeRole(['admin', 'manager', 'operator']), async (req, res) => {
+  try {
+    const { deliveryNoteId } = req.params;
+    const result = await executeQuery(`
+      SELECT 
+        eq.*,
+        dn.delivery_code,
+        o.order_code,
+        o.vendor,
+        p.project_name
+      FROM equipment eq
+      LEFT JOIN delivery_notes dn ON eq.delivery_note_id = dn.id
+      LEFT JOIN orders o ON dn.order_id = o.id
+      LEFT JOIN projects p ON o.project_id = p.id
+      WHERE eq.delivery_note_id = @param0
+      ORDER BY eq.created_at DESC
+    `, [deliveryNoteId]);
+    
+    logger.info(`Retrieved ${result.length} equipment items for delivery note ${deliveryNoteId}`);
+    res.json(result);
+  } catch (error) {
+    logger.error('Error fetching equipment by delivery note:', error);
+    res.status(500).json({ error: 'Failed to fetch equipment' });
+  }
+});
+
+// Get equipment by ID
+router.get('/:id', authorizeRole(['admin', 'manager', 'operator']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await executeQuery(`
+      SELECT 
+        eq.*,
+        dn.delivery_code,
+        o.order_code,
+        o.vendor,
+        p.project_name
+      FROM equipment eq
+      LEFT JOIN delivery_notes dn ON eq.delivery_note_id = dn.id
+      LEFT JOIN orders o ON dn.order_id = o.id
+      LEFT JOIN projects p ON o.project_id = p.id
+      WHERE eq.id = @param0
+    `, [id]);
+    
+    if (result.length === 0) {
+      return res.status(404).json({ error: 'Equipment not found' });
     }
-    return response.json();
+    
+    logger.info(`Retrieved equipment ${id}`);
+    res.json(result[0]);
+  } catch (error) {
+    logger.error('Error fetching equipment by ID:', error);
+    res.status(500).json({ error: 'Failed to fetch equipment' });
   }
+});
 
-  async get(endpoint: string) {
-    console.log(`API GET: ${API_BASE_URL}${endpoint}`);
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      headers: this.getHeaders(),
-      credentials: 'include'
-    });
-    return this.handleResponse(response);
+// Create equipment
+router.post('/', authorizeRole(['admin', 'manager', 'operator']), async (req, res) => {
+  try {
+    const { 
+      delivery_note_id, 
+      serial_number, 
+      asset_tag, 
+      manufacturer, 
+      model, 
+      category, 
+      specifications, 
+      condition_status, 
+      location, 
+      status = 'received' 
+    } = req.body;
+
+    if (!delivery_note_id || !serial_number || !manufacturer || !model) {
+      return res.status(400).json({ error: 'Delivery note ID, serial number, manufacturer, and model are required' });
+    }
+
+    logger.info(`Creating equipment: ${serial_number} for delivery note ${delivery_note_id} by ${req.session.user ? req.session.user.username : 'unknown'}`);
+
+    const result = await executeQuery(
+      'INSERT INTO equipment (delivery_note_id, serial_number, asset_tag, manufacturer, model, category, specifications, condition_status, location, status, created_by, created_at) OUTPUT INSERTED.* VALUES (@param0, @param1, @param2, @param3, @param4, @param5, @param6, @param7, @param8, @param9, @param10, GETDATE())',
+      [delivery_note_id, serial_number, asset_tag, manufacturer, model, category, specifications, condition_status, location, status, req.session.user ? req.session.user.id : 1]
+    );
+
+    logger.info(`Equipment created successfully: ${serial_number}`);
+    res.status(201).json(result[0]);
+  } catch (error) {
+    logger.error('Error creating equipment:', error);
+    console.error('Create equipment error details:', error);
+    res.status(500).json({ error: 'Failed to create equipment' });
   }
+});
 
-  async post(endpoint: string, data: any) {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: 'POST',
-      headers: this.getHeaders(),
-      body: JSON.stringify(data),
-      credentials: 'include'
-    });
-    return this.handleResponse(response);
+// Update equipment
+router.put('/:id', authorizeRole(['admin', 'manager', 'operator']), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { 
+      serial_number, 
+      asset_tag, 
+      manufacturer, 
+      model, 
+      category, 
+      specifications, 
+      condition_status, 
+      location, 
+      status 
+    } = req.body;
+
+    logger.info(`Updating equipment: ${id} by ${req.session.user ? req.session.user.username : 'unknown'}`);
+
+    const result = await executeQuery(
+      'UPDATE equipment SET serial_number = @param0, asset_tag = @param1, manufacturer = @param2, model = @param3, category = @param4, specifications = @param5, condition_status = @param6, location = @param7, status = @param8, updated_at = GETDATE() OUTPUT INSERTED.* WHERE id = @param9',
+      [serial_number, asset_tag, manufacturer, model, category, specifications, condition_status, location, status, id]
+    );
+
+    if (result.length === 0) {
+      return res.status(404).json({ error: 'Equipment not found' });
+    }
+
+    logger.info(`Equipment updated successfully: ${id}`);
+    res.json(result[0]);
+  } catch (error) {
+    logger.error('Error updating equipment:', error);
+    console.error('Update equipment error details:', error);
+    res.status(500).json({ error: 'Failed to update equipment' });
   }
+});
 
-  async put(endpoint: string, data: any) {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: 'PUT',
-      headers: this.getHeaders(),
-      body: JSON.stringify(data),
-      credentials: 'include'
-    });
-    return this.handleResponse(response);
-  }
-
-  async delete(endpoint: string) {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: 'DELETE',
-      headers: this.getHeaders(),
-      credentials: 'include'
-    });
-    return this.handleResponse(response);
-  }
-}
-
-const apiService = new ApiService();
-
-export const authAPI = {
-  login: (username: string, password: string) => 
-    apiService.post('/auth/login', { username, password }),
-  logout: () => 
-    apiService.post('/auth/logout', {}),
-  verify: () => 
-    apiService.get('/auth/verify')
-};
-
-export const projectsAPI = {
-  getAll: () => apiService.get('/projects'),
-  getById: (id: string) => apiService.get(`/projects/${id}`),
-  create: (data: any) => apiService.post('/projects', data),
-  update: (id: string, data: any) => apiService.put(`/projects/${id}`, data),
-  delete: (id: string) => apiService.delete(`/projects/${id}`)
-};
-
-export const ordersAPI = {
-  getByProject: (projectId: string) => apiService.get(`/orders/project/${projectId}`),
-  getAll: () => apiService.get('/orders'),
-  create: (data: any) => apiService.post('/orders', data),
-  update: (id: string, data: any) => apiService.put(`/orders/${id}`, data)
-};
-
-export const deliveryNotesAPI = {
-  getAll: () => apiService.get('/delivery-notes'),
-  getByOrder: (orderId: string) => apiService.get(`/delivery-notes/order/${orderId}`),
-  create: (data: any) => apiService.post('/delivery-notes', data),
-  update: (id: string, data: any) => apiService.put(`/delivery-notes/${id}`, data)
-};
-
-export const equipmentAPI = {
-  getByDeliveryNote: (deliveryNoteId: string) => apiService.get(`/equipment/delivery-note/${deliveryNoteId}`),
-  getAll: () => apiService.get('/equipment'),
-  create: (data: any) => apiService.post('/equipment', data),
-  update: (id: string, data: any) => apiService.put(`/equipment/${id}`, data)
-};
-
-export const monitoringAPI = {
-  getStatus: () => apiService.get('/monitoring/status'),
-  getLogs: (params?: any) => apiService.get(`/monitoring/logs${params ? `?${new URLSearchParams(params).toString()}` : ''}`),
-  getMetrics: () => apiService.get('/monitoring/metrics')
-};
+export default router;

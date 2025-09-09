@@ -1,86 +1,128 @@
-import express from 'express';
-import { executeQuery } from '../config/database.js';
-import logger from '../utils/logger.js';
-import { authorizeRole } from '../middleware/auth.js';
+// API base URL - uses proxy configured in vite.config.ts for development
+// and nginx proxy for production
+const API_BASE_URL = '/api';
 
-const router = express.Router();
-
-router.get('/order/:orderId', async (req, res) => {
-  try {
-    const { orderId } = req.params;
-    const deliveryNotes = await executeQuery(
-      'SELECT dn.*, o.order_code FROM delivery_notes dn LEFT JOIN orders o ON dn.order_id = o.id WHERE dn.order_id = @param0 ORDER BY dn.created_at DESC',
-      [orderId]
-    );
-    
-    logger.debug(`Retrieved ${deliveryNotes.length} delivery notes for order ${orderId}`);
-    res.json(deliveryNotes);
-  } catch (error) {
-    logger.error('Error fetching delivery notes:', error);
-    res.status(500).json({ error: 'Failed to fetch delivery notes' });
+class ApiService {
+  private getHeaders() {
+    return {
+      'Content-Type': 'application/json',
+    };
   }
-});
 
-router.post('/', authorizeRole(['admin', 'manager', 'operator']), async (req, res) => {
-  try {
-    const { 
-      order_id, 
-      delivery_code, 
-      estimated_equipment_count, 
-      delivery_date, 
-      carrier, 
-      tracking_number, 
-      attached_document_path, 
-      notes, 
-      status = 'received' 
-    } = req.body;
-
-    if (!order_id || !delivery_code || !estimated_equipment_count) {
-      return res.status(400).json({ error: 'Order ID, delivery code, and estimated equipment count are required' });
+  private async handleResponse(response: Response) {
+    if (!response.ok) {
+      // Manejar error 401 sin redirección automática
+      if (response.status === 401) {
+        // Solo redirigir si no estamos ya en la página de login
+        if (window.location.pathname !== '/login') {
+          // Usar setTimeout para evitar bucles infinitos
+          setTimeout(() => {
+            window.location.href = '/login';
+          }, 100);
+        }
+        throw new Error('Authentication required');
+      }
+      
+      if (response.status === 429) {
+        throw new Error('Too many requests. Please wait and try again.');
+      }
+      
+      if (response.status === 500) {
+        throw new Error('Server error. Please try again later.');
+      }
+      
+      let error;
+      try {
+        error = await response.json();
+      } catch {
+        error = { error: response.status === 404 ? 'Resource not found' : 'Network error' };
+      }
+      throw new Error(error.error || 'Request failed');
     }
-
-    const result = await executeQuery(
-      'INSERT INTO delivery_notes (order_id, delivery_code, estimated_equipment_count, delivery_date, carrier, tracking_number, attached_document_path, notes, status, created_by, created_at) OUTPUT INSERTED.* VALUES (@param0, @param1, @param2, @param3, @param4, @param5, @param6, @param7, @param8, @param9, GETDATE())',
-      [order_id, delivery_code, estimated_equipment_count, delivery_date, carrier, tracking_number, attached_document_path, notes, status, req.user.id]
-    );
-
-    logger.info(`Delivery note created: ${delivery_code} by ${req.user.username}`);
-    res.status(201).json(result[0]);
-  } catch (error) {
-    logger.error('Error creating delivery note:', error);
-    res.status(500).json({ error: 'Failed to create delivery note' });
+    return response.json();
   }
-});
 
-router.put('/:id', authorizeRole(['admin', 'manager', 'operator']), async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { 
-      delivery_code, 
-      estimated_equipment_count, 
-      delivery_date, 
-      carrier, 
-      tracking_number, 
-      attached_document_path, 
-      notes, 
-      status 
-    } = req.body;
-
-    const result = await executeQuery(
-      'UPDATE delivery_notes SET delivery_code = @param0, estimated_equipment_count = @param1, delivery_date = @param2, carrier = @param3, tracking_number = @param4, attached_document_path = @param5, notes = @param6, status = @param7, updated_at = GETDATE() OUTPUT INSERTED.* WHERE id = @param8',
-      [delivery_code, estimated_equipment_count, delivery_date, carrier, tracking_number, attached_document_path, notes, status, id]
-    );
-
-    if (result.length === 0) {
-      return res.status(404).json({ error: 'Delivery note not found' });
-    }
-
-    logger.info(`Delivery note updated: ${id} by ${req.user.username}`);
-    res.json(result[0]);
-  } catch (error) {
-    logger.error('Error updating delivery note:', error);
-    res.status(500).json({ error: 'Failed to update delivery note' });
+  async get(endpoint: string) {
+    console.log(`API GET: ${API_BASE_URL}${endpoint}`);
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      headers: this.getHeaders(),
+      credentials: 'include'
+    });
+    return this.handleResponse(response);
   }
-});
 
-export default router;
+  async post(endpoint: string, data: any) {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify(data),
+      credentials: 'include'
+    });
+    return this.handleResponse(response);
+  }
+
+  async put(endpoint: string, data: any) {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: 'PUT',
+      headers: this.getHeaders(),
+      body: JSON.stringify(data),
+      credentials: 'include'
+    });
+    return this.handleResponse(response);
+  }
+
+  async delete(endpoint: string) {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: 'DELETE',
+      headers: this.getHeaders(),
+      credentials: 'include'
+    });
+    return this.handleResponse(response);
+  }
+}
+
+const apiService = new ApiService();
+
+export const authAPI = {
+  login: (username: string, password: string) => 
+    apiService.post('/auth/login', { username, password }),
+  logout: () => 
+    apiService.post('/auth/logout', {}),
+  verify: () => 
+    apiService.get('/auth/verify')
+};
+
+export const projectsAPI = {
+  getAll: () => apiService.get('/projects'),
+  getById: (id: string) => apiService.get(`/projects/${id}`),
+  create: (data: any) => apiService.post('/projects', data),
+  update: (id: string, data: any) => apiService.put(`/projects/${id}`, data),
+  delete: (id: string) => apiService.delete(`/projects/${id}`)
+};
+
+export const ordersAPI = {
+  getByProject: (projectId: string) => apiService.get(`/orders/project/${projectId}`),
+  getAll: () => apiService.get('/orders'),
+  create: (data: any) => apiService.post('/orders', data),
+  update: (id: string, data: any) => apiService.put(`/orders/${id}`, data)
+};
+
+export const deliveryNotesAPI = {
+  getAll: () => apiService.get('/delivery-notes'),
+  getByOrder: (orderId: string) => apiService.get(`/delivery-notes/order/${orderId}`),
+  create: (data: any) => apiService.post('/delivery-notes', data),
+  update: (id: string, data: any) => apiService.put(`/delivery-notes/${id}`, data)
+};
+
+export const equipmentAPI = {
+  getByDeliveryNote: (deliveryNoteId: string) => apiService.get(`/equipment/delivery-note/${deliveryNoteId}`),
+  getAll: () => apiService.get('/equipment'),
+  create: (data: any) => apiService.post('/equipment', data),
+  update: (id: string, data: any) => apiService.put(`/equipment/${id}`, data)
+};
+
+export const monitoringAPI = {
+  getStatus: () => apiService.get('/monitoring/status'),
+  getLogs: (params?: any) => apiService.get(`/monitoring/logs${params ? `?${new URLSearchParams(params).toString()}` : ''}`),
+  getMetrics: () => apiService.get('/monitoring/metrics')
+};

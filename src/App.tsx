@@ -21,6 +21,11 @@ function App() {
           <div className="min-h-screen bg-gray-50">
             <Routes>
               <Route path="/login" element={<LoginPage />} />
+              <Route path="*" element={
+                <ProtectedRoute>
+                  <Navigate to="/login" replace />
+                </ProtectedRoute>
+              } />
               <Route path="/" element={
                 <ProtectedRoute>
                   <Layout />
@@ -30,8 +35,11 @@ function App() {
                 <Route path="dashboard" element={<DashboardPage />} />
                 <Route path="projects" element={<ProjectsPage />} />
                 <Route path="projects/:projectId/orders" element={<OrdersPage />} />
+                <Route path="orders" element={<OrdersPage />} />
                 <Route path="orders/:orderId/delivery-notes" element={<DeliveryNotesPage />} />
+                <Route path="delivery-notes" element={<DeliveryNotesPage />} />
                 <Route path="delivery-notes/:deliveryNoteId/equipment" element={<EquipmentPage />} />
+                <Route path="equipment" element={<EquipmentPage />} />
                 <Route path="monitoring" element={<MonitoringPage />} />
               </Route>
             </Routes>

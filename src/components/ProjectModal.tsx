@@ -103,7 +103,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, isOpen, onClose, o
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Código RITM *
+              Código RITM (ServiceNow) *
             </label>
             <input
               type="text"
@@ -125,7 +125,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, isOpen, onClose, o
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               value={formData.project_name}
               onChange={(e) => setFormData(prev => ({ ...prev, project_name: e.target.value }))}
-              placeholder="ej. Expansión Datacenter Fase 1"
+              placeholder="Nombre descriptivo del proyecto"
             />
           </div>
 
@@ -172,10 +172,10 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, isOpen, onClose, o
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              URL Carpeta Teams
+              URL de Carpeta Teams
             </label>
             <input
-              type="text"
+              type="url"
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               value={formData.teams_folder_url}
               onChange={(e) => setFormData(prev => ({ ...prev, teams_folder_url: e.target.value }))}
@@ -185,14 +185,14 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, isOpen, onClose, o
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Archivo Excel
+              Archivo Excel (Ruta)
             </label>
             <input
               type="text"
               className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               value={formData.excel_file_path}
               onChange={(e) => setFormData(prev => ({ ...prev, excel_file_path: e.target.value }))}
-              placeholder="/uploads/projects/RITM0012345_equipment_list.xlsx"
+              placeholder="/uploads/projects/proyecto_equipos.xlsx"
             />
           </div>
 

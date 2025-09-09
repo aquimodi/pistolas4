@@ -7,58 +7,33 @@ module.exports = {
       name: 'datacenter-equipment-api',
       script: './server/index.js',
       cwd: process.env.INSTALL_PATH || 'D:/nginx/pistolas',
-      instances: 1,
-      exec_mode: 'fork',
+      instances: 2, // Run 2 instances for load balancing
+      exec_mode: 'cluster',
+      
+      // Load environment file
+      env_file: './.env',
       
       // Production environment variables
       env_production: {
         NODE_ENV: 'production',
         PORT: 3001,
-        HOST: '0.0.0.0',
+        HOST: '0.0.0.0', 
+        ALLOWED_ORIGINS: 'http://localhost,http://localhost:5173,http://107.3.52.136,https://107.3.52.136',
+        RATE_LIMIT_WINDOW_MS: 900000,
+        RATE_LIMIT_MAX_REQUESTS: 500,
         DB_SERVER: 'localhost',
         DB_PORT: 1433,
         DB_DATABASE: 'datacenter_equipment',
-        DB_USER: 'datacenter_user',
-        DB_PASSWORD: 'SecurePassword123!',
-        JWT_SECRET: 'your_production_jwt_secret_here',
-        JWT_EXPIRES_IN: '24h',
-        SERVER_IP: '107.3.52.136',
-        ALLOWED_ORIGINS: 'http://localhost,http://localhost:5173,http://107.3.52.136,https://107.3.52.136,https://datacenter.local',
-        RATE_LIMIT_WINDOW_MS: 900000,
-        RATE_LIMIT_MAX_REQUESTS: 100
+        DB_USER: 'sa',
+        JWT_SECRET: 'datacenter_production_secret_2024'
       },
       
       // Development environment
       env_development: {
         NODE_ENV: 'development',
         PORT: 3001,
-        HOST: '0.0.0.0',
-        DB_SERVER: 'localhost',
-        DB_PORT: 1433,
-        DB_DATABASE: 'datacenter_equipment',
-        DB_USER: 'datacenter_user',
-        DB_PASSWORD: 'SecurePassword123!',
-        JWT_SECRET: 'dev_jwt_secret',
         SERVER_IP: 'localhost',
         ALLOWED_ORIGINS: 'http://localhost:5173,http://localhost:3000'
-      },
-      
-      // Default environment
-      env: {
-        NODE_ENV: 'production',
-        PORT: 3001,
-        HOST: '0.0.0.0',
-        DB_SERVER: 'localhost',
-        DB_PORT: 1433,
-        DB_DATABASE: 'datacenter_equipment',
-        DB_USER: 'datacenter_user',
-        DB_PASSWORD: 'SecurePassword123!',
-        JWT_SECRET: 'your_production_jwt_secret_here',
-        JWT_EXPIRES_IN: '24h',
-        SERVER_IP: '107.3.52.136',
-        ALLOWED_ORIGINS: 'http://localhost,http://localhost:5173,http://107.3.52.136,https://107.3.52.136,https://datacenter.local',
-        RATE_LIMIT_WINDOW_MS: 900000,
-        RATE_LIMIT_MAX_REQUESTS: 100
       },
       
       // Monitoring and logging
@@ -68,7 +43,7 @@ module.exports = {
       time: true,
       
       // Auto-restart settings
-      watch: false,
+      watch: false, // Set to true in development
       ignore_watch: [
         'node_modules',
         'logs',

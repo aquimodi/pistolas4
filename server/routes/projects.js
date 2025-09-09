@@ -5,16 +5,10 @@ import { authorizeRole } from '../middleware/auth.js';
 
 const router = express.Router();
 
+// Get all projects
 router.get('/', async (req, res) => {
   try {
-    let projects;
-    try {
-      projects = await executeQuery('SELECT * FROM projects ORDER BY created_at DESC');
-    } catch (error) {
-      logger.error('Database query failed, returning empty array:', error);
-      projects = [];
-    }
-    
+    const projects = await executeQuery('SELECT * FROM projects ORDER BY created_at DESC');
     logger.debug(`Retrieved ${projects.length} projects for user: ${req.user.username}`);
     res.json(projects);
   } catch (error) {
@@ -23,6 +17,7 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Get project by ID
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -40,29 +35,21 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+// Create project
 router.post('/', authorizeRole(['admin', 'manager']), async (req, res) => {
   try {
-    const { 
-      ritm_code, 
-      project_name, 
-      client, 
-      datacenter, 
-      delivery_date, 
-      teams_folder_url, 
-      excel_file_path, 
-      status = 'active' 
-    } = req.body;
+    const { name, description, status = 'active' } = req.body;
 
-    if (!ritm_code || !project_name || !client || !datacenter) {
-      return res.status(400).json({ error: 'RITM code, project name, client, and datacenter are required' });
+    if (!name) {
+      return res.status(400).json({ error: 'Project name is required' });
     }
 
     const result = await executeQuery(
-      'INSERT INTO projects (ritm_code, project_name, client, datacenter, delivery_date, teams_folder_url, excel_file_path, status, created_by, created_at) OUTPUT INSERTED.* VALUES (@param0, @param1, @param2, @param3, @param4, @param5, @param6, @param7, @param8, GETDATE())',
-      [ritm_code, project_name, client, datacenter, delivery_date, teams_folder_url, excel_file_path, status, req.user.id]
+      'INSERT INTO projects (name, description, status, created_by, created_at) OUTPUT INSERTED.* VALUES (@param0, @param1, @param2, @param3, GETDATE())',
+      [name, description, status, req.user.id]
     );
 
-    logger.info(`Project created: ${project_name} (${ritm_code}) by ${req.user.username}`);
+    logger.info(`Project created: ${name} by ${req.user.username}`);
     res.status(201).json(result[0]);
   } catch (error) {
     logger.error('Error creating project:', error);
@@ -70,23 +57,15 @@ router.post('/', authorizeRole(['admin', 'manager']), async (req, res) => {
   }
 });
 
+// Update project
 router.put('/:id', authorizeRole(['admin', 'manager']), async (req, res) => {
   try {
     const { id } = req.params;
-    const { 
-      ritm_code, 
-      project_name, 
-      client, 
-      datacenter, 
-      delivery_date, 
-      teams_folder_url, 
-      excel_file_path, 
-      status 
-    } = req.body;
+    const { name, description, status } = req.body;
 
     const result = await executeQuery(
-      'UPDATE projects SET ritm_code = @param0, project_name = @param1, client = @param2, datacenter = @param3, delivery_date = @param4, teams_folder_url = @param5, excel_file_path = @param6, status = @param7, updated_at = GETDATE() OUTPUT INSERTED.* WHERE id = @param8',
-      [ritm_code, project_name, client, datacenter, delivery_date, teams_folder_url, excel_file_path, status, id]
+      'UPDATE projects SET name = @param0, description = @param1, status = @param2, updated_at = GETDATE() OUTPUT INSERTED.* WHERE id = @param3',
+      [name, description, status, id]
     );
 
     if (result.length === 0) {

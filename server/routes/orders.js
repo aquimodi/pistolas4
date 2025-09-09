@@ -1,100 +1,128 @@
-import express from 'express';
-import { executeQuery } from '../config/database.js';
-import logger from '../utils/logger.js';
-import { authorizeRole } from '../middleware/auth.js';
+// API base URL - uses proxy configured in vite.config.ts for development
+// and nginx proxy for production
+const API_BASE_URL = '/api';
 
-const router = express.Router();
-
-router.get('/project/:projectId', async (req, res) => {
-  try {
-    const { projectId } = req.params;
-    let orders;
-    try {
-      orders = await executeQuery(
-        'SELECT o.*, p.project_name FROM orders o LEFT JOIN projects p ON o.project_id = p.id WHERE o.project_id = @param0 ORDER BY o.created_at DESC',
-        [projectId]
-      );
-    } catch (error) {
-      logger.error('Database query failed, returning empty array:', error);
-      orders = [];
-    }
-    
-    logger.debug(`Retrieved ${orders.length} orders for project ${projectId}`);
-    res.json(orders);
-  } catch (error) {
-    logger.error('Error fetching orders:', error);
-    res.status(500).json({ error: 'Failed to fetch orders' });
+class ApiService {
+  private getHeaders() {
+    return {
+      'Content-Type': 'application/json',
+    };
   }
-});
 
-router.get('/', async (req, res) => {
-  try {
-    let orders;
-    try {
-      orders = await executeQuery(
-        'SELECT o.*, p.project_name FROM orders o LEFT JOIN projects p ON o.project_id = p.id ORDER BY o.created_at DESC'
-      );
-    } catch (error) {
-      logger.error('Database query failed, returning empty array:', error);
-      orders = [];
+  private async handleResponse(response: Response) {
+    if (!response.ok) {
+      // Manejar error 401 sin redirección automática
+      if (response.status === 401) {
+        // Solo redirigir si no estamos ya en la página de login
+        if (window.location.pathname !== '/login') {
+          // Usar setTimeout para evitar bucles infinitos
+          setTimeout(() => {
+            window.location.href = '/login';
+          }, 100);
+        }
+        throw new Error('Authentication required');
+      }
+      
+      if (response.status === 429) {
+        throw new Error('Too many requests. Please wait and try again.');
+      }
+      
+      if (response.status === 500) {
+        throw new Error('Server error. Please try again later.');
+      }
+      
+      let error;
+      try {
+        error = await response.json();
+      } catch {
+        error = { error: response.status === 404 ? 'Resource not found' : 'Network error' };
+      }
+      throw new Error(error.error || 'Request failed');
     }
-    
-    res.json(orders);
-  } catch (error) {
-    logger.error('Error fetching orders:', error);
-    res.status(500).json({ error: 'Failed to fetch orders' });
+    return response.json();
   }
-});
 
-router.post('/', authorizeRole(['admin', 'manager', 'operator']), async (req, res) => {
-  try {
-    const { 
-      project_id, 
-      order_code, 
-      equipment_count, 
-      vendor, 
-      description, 
-      expected_delivery_date, 
-      status = 'pending' 
-    } = req.body;
-
-    if (!project_id || !order_code || !equipment_count) {
-      return res.status(400).json({ error: 'Project ID, order code, and equipment count are required' });
-    }
-
-    const result = await executeQuery(
-      'INSERT INTO orders (project_id, order_code, equipment_count, vendor, description, expected_delivery_date, status, created_by, created_at) OUTPUT INSERTED.* VALUES (@param0, @param1, @param2, @param3, @param4, @param5, @param6, @param7, GETDATE())',
-      [project_id, order_code, equipment_count, vendor, description, expected_delivery_date, status, req.user.id]
-    );
-
-    logger.info(`Order created: ${order_code} by ${req.user.username}`);
-    res.status(201).json(result[0]);
-  } catch (error) {
-    logger.error('Error creating order:', error);
-    res.status(500).json({ error: 'Failed to create order' });
+  async get(endpoint: string) {
+    console.log(`API GET: ${API_BASE_URL}${endpoint}`);
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      headers: this.getHeaders(),
+      credentials: 'include'
+    });
+    return this.handleResponse(response);
   }
-});
 
-router.put('/:id', authorizeRole(['admin', 'manager', 'operator']), async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { order_code, equipment_count, vendor, description, expected_delivery_date, status } = req.body;
-
-    const result = await executeQuery(
-      'UPDATE orders SET order_code = @param0, equipment_count = @param1, vendor = @param2, description = @param3, expected_delivery_date = @param4, status = @param5, updated_at = GETDATE() OUTPUT INSERTED.* WHERE id = @param6',
-      [order_code, equipment_count, vendor, description, expected_delivery_date, status, id]
-    );
-
-    if (result.length === 0) {
-      return res.status(404).json({ error: 'Order not found' });
-    }
-
-    logger.info(`Order updated: ${id} by ${req.user.username}`);
-    res.json(result[0]);
-  } catch (error) {
-    logger.error('Error updating order:', error);
-    res.status(500).json({ error: 'Failed to update order' });
+  async post(endpoint: string, data: any) {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify(data),
+      credentials: 'include'
+    });
+    return this.handleResponse(response);
   }
-});
 
-export default router;
+  async put(endpoint: string, data: any) {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: 'PUT',
+      headers: this.getHeaders(),
+      body: JSON.stringify(data),
+      credentials: 'include'
+    });
+    return this.handleResponse(response);
+  }
+
+  async delete(endpoint: string) {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: 'DELETE',
+      headers: this.getHeaders(),
+      credentials: 'include'
+    });
+    return this.handleResponse(response);
+  }
+}
+
+const apiService = new ApiService();
+
+export const authAPI = {
+  login: (username: string, password: string) => 
+    apiService.post('/auth/login', { username, password }),
+  logout: () => 
+    apiService.post('/auth/logout', {}),
+  verify: () => 
+    apiService.get('/auth/verify')
+};
+
+export const projectsAPI = {
+  getAll: () => apiService.get('/projects'),
+  getById: (id: string) => apiService.get(`/projects/${id}`),
+  create: (data: any) => apiService.post('/projects', data),
+  update: (id: string, data: any) => apiService.put(`/projects/${id}`, data),
+  delete: (id: string) => apiService.delete(`/projects/${id}`)
+};
+
+export const ordersAPI = {
+  getByProject: (projectId: string) => apiService.get(`/orders/project/${projectId}`),
+  getAll: () => apiService.get('/orders'),
+  create: (data: any) => apiService.post('/orders', data),
+  update: (id: string, data: any) => apiService.put(`/orders/${id}`, data)
+};
+
+export const deliveryNotesAPI = {
+  getAll: () => apiService.get('/delivery-notes'),
+  getByOrder: (orderId: string) => apiService.get(`/delivery-notes/order/${orderId}`),
+  create: (data: any) => apiService.post('/delivery-notes', data),
+  update: (id: string, data: any) => apiService.put(`/delivery-notes/${id}`, data)
+};
+
+export const equipmentAPI = {
+  getByDeliveryNote: (deliveryNoteId: string) => apiService.get(`/equipment/delivery-note/${deliveryNoteId}`),
+  getAll: () => apiService.get('/equipment'),
+  create: (data: any) => apiService.post('/equipment', data),
+  update: (id: string, data: any) => apiService.put(`/equipment/${id}`, data)
+};
+
+export const monitoringAPI = {
+  getStatus: () => apiService.get('/monitoring/status'),
+  getLogs: (params?: any) => apiService.get(`/monitoring/logs${params ? `?${new URLSearchParams(params).toString()}` : ''}`),
+  getMetrics: () => apiService.get('/monitoring/metrics')
+};

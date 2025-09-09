@@ -21,15 +21,42 @@ import monitoringRoutes from './routes/monitoring.js';
 import { authenticateSession } from './middleware/auth.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
-
 const app = express();
 const PORT = process.env.PORT || 3001;
+const HOST = '0.0.0.0'; // Siempre escuchar en todas las interfaces
 
+// Add process error handlers
+process.on('uncaughtException', (err) => {
+  logger.error('Uncaught Exception:', err);
+  console.error('❌ Uncaught Exception:', err.message);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  console.error('❌ Unhandled Rejection:', reason);
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('🛑 SIGTERM received, shutting down gracefully');
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  console.log('🛑 SIGINT received, shutting down gracefully');
+  process.exit(0);
+});
 // Rate limiting
 const limiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutos
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 500, // Aumentar límite
   message: 'Too many requests from this IP, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+  // Excluir rutas de verificación de autenticación del rate limiting agresivo
+  skip: (req) => {
+    return req.path === '/api/auth/verify' || req.path === '/health';
+  }
 });
 
 // Middleware
@@ -41,7 +68,9 @@ app.use(cors({
   origin: process.env.ALLOWED_ORIGINS?.split(',') || [
     'http://localhost:5173', // Vite dev server
     'http://localhost:3000',
-    'http://localhost'
+    'http://localhost',
+    'http://107.3.52.136',
+    'https://107.3.52.136'
   ],
   credentials: true,
   optionsSuccessStatus: 200,
@@ -53,7 +82,12 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'datacenter_session_secret',
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 } // 24 hours
+  cookie: { 
+    secure: false, 
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    sameSite: 'lax'
+  }
 }));
 
 app.use(limiter);
@@ -63,9 +97,19 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Health check
 app.get('/health', (req, res) => {
+  console.log('🏥 Health check accessed');
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
+// Root route
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'Datacenter Equipment Management API', 
+    status: 'running',
+    version: '1.0.0',
+    timestamp: new Date().toISOString()
+  });
+});
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/projects', authenticateSession, projectRoutes);
@@ -80,20 +124,47 @@ app.use(errorHandler);
 // 404 handler
 app.use('*', (req, res) => {
   logger.warn(`404 - Route not found: ${req.originalUrl}`);
+  console.log(`❌ 404 - Route not found: ${req.originalUrl}`);
   res.status(404).json({ error: 'Route not found' });
 });
 
 // Start server
 async function startServer() {
   try {
+    console.log('=================================');
+    console.log('🚀 STARTING DATACENTER API SERVER');
+    console.log('=================================');
+    console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`📡 Host: ${HOST}`);
+    console.log(`🔌 Port: ${PORT}`);
+    console.log(`📁 Working Directory: ${process.cwd()}`);
+    console.log(`📋 Process ID: ${process.pid}`);
+    console.log(`🔧 Node Version: ${process.version}`);
+    console.log(`⏰ Start Time: ${new Date().toISOString()}`);
+    
+    console.log('Attempting database connection...');
     await connectDB();
-    app.listen(PORT, () => {
+    
+    console.log(`Creating server on ${HOST}:${PORT}...`);
+    app.listen(PORT, HOST, () => {
       logger.info(`Server running on port ${PORT}`);
-      console.log(`🚀 Datacenter Equipment Management API running on localhost:${PORT}`);
-      console.log(`📡 Frontend proxy: http://localhost:5173 -> http://localhost:${PORT}`);
+      console.log('=================================');
+      console.log('✅ SERVER STARTED SUCCESSFULLY!');
+      console.log('=================================');
+      console.log(`🌐 Local Access: http://localhost:${PORT}`);
+      console.log(`🌍 External Access: http://${HOST}:${PORT}`);
+      console.log(`🏥 Health Check: http://localhost:${PORT}/health`);
+      console.log(`📊 Database: ${process.env.DB_SERVER || 'localhost'}`);
+      console.log('=================================');
     });
   } catch (error) {
     logger.error('Failed to start server:', error);
+    console.error('=================================');
+    console.error('❌ SERVER STARTUP FAILED!');
+    console.error('=================================');
+    console.error('Error:', error.message);
+    console.error('Stack:', error.stack);
+    console.error('=================================');
     process.exit(1);
   }
 }

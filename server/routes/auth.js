@@ -14,35 +14,12 @@ router.post('/login', async (req, res) => {
     }
 
     // Get user from database
-    let users;
-    try {
-      users = await executeQuery(
-        'SELECT id, username, email, password, role, is_active FROM users WHERE username = @param0',
-        [username]
-      );
-    } catch (error) {
-      logger.error('Database query failed during login:', error);
-      users = [];
-    }
+    const users = await executeQuery(
+      'SELECT id, username, email, password, role, is_active FROM users WHERE username = @param0',
+      [username]
+    );
 
-    // Fallback to hardcoded users if database is not available
-    if (!users || users.length === 0) {
-      const fallbackUsers = {
-        'admin': { id: 1, username: 'admin', email: 'admin@datacenter.com', password: 'admin', role: 'admin', is_active: true },
-        'manager': { id: 2, username: 'manager', email: 'manager@datacenter.com', password: 'manager', role: 'manager', is_active: true },
-        'operator': { id: 3, username: 'operator', email: 'operator@datacenter.com', password: 'operator', role: 'operator', is_active: true },
-        'viewer': { id: 4, username: 'viewer', email: 'viewer@datacenter.com', password: 'viewer', role: 'viewer', is_active: true }
-      };
-      
-      const fallbackUser = fallbackUsers[username.toLowerCase()];
-      if (!fallbackUser) {
-        logger.warn(`Login attempt with invalid username: ${username} from ${req.ip}`);
-        return res.status(401).json({ error: 'Invalid credentials' });
-      }
-      users = [fallbackUser];
-    }
-
-    if (!users || users.length === 0) {
+    if (users.length === 0) {
       logger.warn(`Login attempt with invalid username: ${username} from ${req.ip}`);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
@@ -71,15 +48,10 @@ router.post('/login', async (req, res) => {
     };
 
     // Update last login
-    try {
-      await executeQuery(
-        'UPDATE users SET last_login = GETDATE() WHERE id = @param0',
-        [user.id]
-      );
-    } catch (error) {
-      logger.warn('Could not update last login time:', error.message);
-      // Continue anyway, this is not critical
-    }
+    await executeQuery(
+      'UPDATE users SET last_login = GETDATE() WHERE id = @param0',
+      [user.id]
+    );
 
     logger.info(`Successful login: ${username} (${user.role}) from ${req.ip}`);
 

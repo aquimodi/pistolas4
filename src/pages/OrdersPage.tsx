@@ -115,7 +115,6 @@ export const deliveryNotesAPI = {
 };
 
 export const equipmentAPI = {
-  getByDeliveryNote: (deliveryNoteId: string) => apiService.get(`/equipment/delivery-note/${deliveryNoteId}`),
                         <h3 className="text-sm font-medium text-gray-900">{order.order_code || order.order_number}</h3>
   update: (id: string, data: any) => apiService.put(`/equipment/${id}`, data)
 };

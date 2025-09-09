@@ -117,7 +117,6 @@ export const deliveryNotesAPI = {
 export const equipmentAPI = {
   getByDeliveryNote: (deliveryNoteId: string) => apiService.get(`/equipment/delivery-note/${deliveryNoteId}`),
   getAll: () => apiService.get('/equipment'),
-      console.error('Error fetching equipment:', error);
   create: (data: any) => apiService.post('/equipment', data),
   update: (id: string, data: any) => apiService.put(`/equipment/${id}`, data)
 };

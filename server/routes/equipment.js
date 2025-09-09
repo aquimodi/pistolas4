@@ -74,10 +74,13 @@ router.post('/', authenticateToken, async (req, res) => {
     const { 
       delivery_note_id, 
       serial_number, 
+      asset_tag,
       manufacturer, 
       model, 
-      equipment_type, 
+      category, 
       specifications, 
+      condition_status,
+      location,
       status 
     } = req.body;
     
@@ -90,25 +93,33 @@ router.post('/', authenticateToken, async (req, res) => {
       INSERT INTO equipment (
         delivery_note_id, 
         serial_number, 
+        asset_tag,
         manufacturer, 
         model, 
-        equipment_type, 
+        category, 
         specifications, 
+        condition_status,
+        location,
         status, 
+        created_by,
         created_at
       )
       OUTPUT INSERTED.*
-      VALUES (@param0, @param1, @param2, @param3, @param4, @param5, @param6, GETDATE())
+      VALUES (@param0, @param1, @param2, @param3, @param4, @param5, @param6, @param7, @param8, @param9, @param10, GETDATE())
     `;
     
     const result = await executeQuery(query, [
       delivery_note_id,
       serial_number,
+      asset_tag,
       manufacturer,
       model,
-      equipment_type || 'Unknown',
+      category,
       specifications || '',
-      status || 'received'
+      condition_status || 'new',
+      location,
+      status || 'received',
+      req.user.id
     ]);
     
     res.status(201).json(result[0]);
@@ -125,10 +136,13 @@ router.put('/:id', authenticateToken, async (req, res) => {
     const { 
       delivery_note_id, 
       serial_number, 
+      asset_tag,
       manufacturer, 
       model, 
-      equipment_type, 
+      category, 
       specifications, 
+      condition_status,
+      location,
       status 
     } = req.body;
     
@@ -136,11 +150,14 @@ router.put('/:id', authenticateToken, async (req, res) => {
       UPDATE equipment 
       SET delivery_note_id = @param1,
           serial_number = @param2,
-          manufacturer = @param3,
-          model = @param4,
-          equipment_type = @param5,
-          specifications = @param6,
-          status = @param7,
+          asset_tag = @param3,
+          manufacturer = @param4,
+          model = @param5,
+          category = @param6,
+          specifications = @param7,
+          condition_status = @param8,
+          location = @param9,
+          status = @param10,
           updated_at = GETDATE()
       OUTPUT INSERTED.*
       WHERE id = @param0
@@ -150,10 +167,13 @@ router.put('/:id', authenticateToken, async (req, res) => {
       id,
       delivery_note_id,
       serial_number,
+      asset_tag,
       manufacturer,
       model,
-      equipment_type,
+      category,
       specifications,
+      condition_status,
+      location,
       status
     ]);
     

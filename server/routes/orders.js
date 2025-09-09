@@ -7,7 +7,7 @@ import { authenticateToken } from '../middleware/auth.js';
 router.get('/', authenticateToken, async (req, res) => {
   try {
     const query = `
-      SELECT o.*, p.name as project_name 
+      SELECT o.*, p.project_name 
       FROM orders o 
       LEFT JOIN projects p ON o.project_id = p.id 
       ORDER BY o.created_at DESC
@@ -25,7 +25,7 @@ router.get('/project/:projectId', authenticateToken, async (req, res) => {
   try {
     const { projectId } = req.params;
     const query = `
-      SELECT o.*, p.name as project_name 
+      SELECT o.*, p.project_name 
       FROM orders o 
       LEFT JOIN projects p ON o.project_id = p.id 
       WHERE o.project_id = @param0 
@@ -44,7 +44,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const query = `
-      SELECT o.*, p.name as project_name 
+      SELECT o.*, p.project_name 
       FROM orders o 
       LEFT JOIN projects p ON o.project_id = p.id 
       WHERE o.id = @param0
@@ -65,17 +65,25 @@ router.get('/:id', authenticateToken, async (req, res) => {
 // Create new order
 router.post('/', authenticateToken, async (req, res) => {
   try {
-    const { project_id, order_code, equipment_count, vendor, status } = req.body;
+    const { 
+      project_id, 
+      order_code, 
+      equipment_count, 
+      vendor, 
+      description, 
+      expected_delivery_date, 
+      status 
+    } = req.body;
     
     // Validation
-    if (!project_id || !order_code || !equipment_count || !vendor) {
-      return res.status(400).json({ error: 'Missing required fields' });
+    if (!project_id || !order_code || equipment_count === undefined) {
+      return res.status(400).json({ error: 'Project ID, order code, and equipment count are required' });
     }
     
     const query = `
-      INSERT INTO orders (project_id, order_code, equipment_count, vendor, status, created_at)
+      INSERT INTO orders (project_id, order_code, equipment_count, vendor, description, expected_delivery_date, status, created_by, created_at)
       OUTPUT INSERTED.*
-      VALUES (@param0, @param1, @param2, @param3, @param4, GETDATE())
+      VALUES (@param0, @param1, @param2, @param3, @param4, @param5, @param6, @param7, GETDATE())
     `;
     
     const result = await executeQuery(query, [
@@ -83,7 +91,10 @@ router.post('/', authenticateToken, async (req, res) => {
       order_code, 
       equipment_count, 
       vendor, 
-      status || 'pending'
+      description,
+      expected_delivery_date,
+      status || 'pending',
+      req.user.id
     ]);
     
     res.status(201).json(result[0]);
@@ -97,7 +108,15 @@ router.post('/', authenticateToken, async (req, res) => {
 router.put('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { project_id, order_code, equipment_count, vendor, status } = req.body;
+    const { 
+      project_id, 
+      order_code, 
+      equipment_count, 
+      vendor, 
+      description, 
+      expected_delivery_date, 
+      status 
+    } = req.body;
     
     const query = `
       UPDATE orders 
@@ -105,7 +124,9 @@ router.put('/:id', authenticateToken, async (req, res) => {
           order_code = @param2, 
           equipment_count = @param3, 
           vendor = @param4, 
-          status = @param5,
+          description = @param5,
+          expected_delivery_date = @param6,
+          status = @param7,
           updated_at = GETDATE()
       OUTPUT INSERTED.*
       WHERE id = @param0
@@ -117,6 +138,8 @@ router.put('/:id', authenticateToken, async (req, res) => {
       order_code, 
       equipment_count, 
       vendor, 
+      description,
+      expected_delivery_date,
       status
     ]);
     

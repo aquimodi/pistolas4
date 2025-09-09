@@ -38,18 +38,27 @@ router.get('/:id', async (req, res) => {
 // Create project
 router.post('/', authorizeRole(['admin', 'manager']), async (req, res) => {
   try {
-    const { name, description, status = 'active' } = req.body;
+    const { 
+      ritm_code, 
+      project_name, 
+      client, 
+      datacenter, 
+      delivery_date, 
+      teams_folder_url, 
+      excel_file_path, 
+      status = 'active' 
+    } = req.body;
 
-    if (!name) {
-      return res.status(400).json({ error: 'Project name is required' });
+    if (!ritm_code || !project_name || !client || !datacenter) {
+      return res.status(400).json({ error: 'RITM code, project name, client, and datacenter are required' });
     }
 
     const result = await executeQuery(
-      'INSERT INTO projects (name, description, status, created_by, created_at) OUTPUT INSERTED.* VALUES (@param0, @param1, @param2, @param3, GETDATE())',
-      [name, description, status, req.user.id]
+      'INSERT INTO projects (ritm_code, project_name, client, datacenter, delivery_date, teams_folder_url, excel_file_path, status, created_by, created_at) OUTPUT INSERTED.* VALUES (@param0, @param1, @param2, @param3, @param4, @param5, @param6, @param7, @param8, GETDATE())',
+      [ritm_code, project_name, client, datacenter, delivery_date, teams_folder_url, excel_file_path, status, req.user.id]
     );
 
-    logger.info(`Project created: ${name} by ${req.user.username}`);
+    logger.info(`Project created: ${project_name} by ${req.user.username}`);
     res.status(201).json(result[0]);
   } catch (error) {
     logger.error('Error creating project:', error);
@@ -61,11 +70,20 @@ router.post('/', authorizeRole(['admin', 'manager']), async (req, res) => {
 router.put('/:id', authorizeRole(['admin', 'manager']), async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, status } = req.body;
+    const { 
+      ritm_code, 
+      project_name, 
+      client, 
+      datacenter, 
+      delivery_date, 
+      teams_folder_url, 
+      excel_file_path, 
+      status 
+    } = req.body;
 
     const result = await executeQuery(
-      'UPDATE projects SET name = @param0, description = @param1, status = @param2, updated_at = GETDATE() OUTPUT INSERTED.* WHERE id = @param3',
-      [name, description, status, id]
+      'UPDATE projects SET ritm_code = @param1, project_name = @param2, client = @param3, datacenter = @param4, delivery_date = @param5, teams_folder_url = @param6, excel_file_path = @param7, status = @param8, updated_at = GETDATE() OUTPUT INSERTED.* WHERE id = @param0',
+      [id, ritm_code, project_name, client, datacenter, delivery_date, teams_folder_url, excel_file_path, status]
     );
 
     if (result.length === 0) {

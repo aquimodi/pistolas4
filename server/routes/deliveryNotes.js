@@ -73,12 +73,15 @@ router.post('/', authenticateToken, async (req, res) => {
       delivery_code, 
       estimated_equipment_count, 
       delivery_date, 
+      carrier,
+      tracking_number,
+      attached_document_path,
       notes 
     } = req.body;
     
     // Validation
-    if (!order_id || !delivery_code || !estimated_equipment_count) {
-      return res.status(400).json({ error: 'Missing required fields' });
+    if (!order_id || !delivery_code || estimated_equipment_count === undefined || !delivery_date) {
+      return res.status(400).json({ error: 'Order ID, delivery code, estimated equipment count, and delivery date are required' });
     }
     
     const query = `
@@ -87,19 +90,27 @@ router.post('/', authenticateToken, async (req, res) => {
         delivery_code, 
         estimated_equipment_count, 
         delivery_date, 
+        carrier,
+        tracking_number,
+        attached_document_path,
         notes, 
+        created_by,
         created_at
       )
       OUTPUT INSERTED.*
-      VALUES (@param0, @param1, @param2, @param3, @param4, GETDATE())
+      VALUES (@param0, @param1, @param2, @param3, @param4, @param5, @param6, @param7, @param8, GETDATE())
     `;
     
     const result = await executeQuery(query, [
       order_id,
       delivery_code,
       estimated_equipment_count,
-      delivery_date || new Date(),
-      notes || ''
+      delivery_date,
+      carrier,
+      tracking_number,
+      attached_document_path,
+      notes || '',
+      req.user.id
     ]);
     
     res.status(201).json(result[0]);
@@ -118,6 +129,9 @@ router.put('/:id', authenticateToken, async (req, res) => {
       delivery_code, 
       estimated_equipment_count, 
       delivery_date, 
+      carrier,
+      tracking_number,
+      attached_document_path,
       notes 
     } = req.body;
     
@@ -127,7 +141,10 @@ router.put('/:id', authenticateToken, async (req, res) => {
           delivery_code = @param2,
           estimated_equipment_count = @param3,
           delivery_date = @param4,
-          notes = @param5,
+          carrier = @param5,
+          tracking_number = @param6,
+          attached_document_path = @param7,
+          notes = @param8,
           updated_at = GETDATE()
       OUTPUT INSERTED.*
       WHERE id = @param0
@@ -139,6 +156,9 @@ router.put('/:id', authenticateToken, async (req, res) => {
       delivery_code,
       estimated_equipment_count,
       delivery_date,
+      carrier,
+      tracking_number,
+      attached_document_path,
       notes
     ]);
     

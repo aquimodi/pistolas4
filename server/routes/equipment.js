@@ -7,7 +7,7 @@ import { authenticateToken } from '../middleware/auth.js';
 router.get('/', authenticateToken, async (req, res) => {
   try {
     const query = `
-      SELECT e.*, dn.delivery_code, o.order_code, p.name as project_name
+      SELECT e.*, dn.delivery_code, o.order_code, p.project_name
       FROM equipment e
       LEFT JOIN delivery_notes dn ON e.delivery_note_id = dn.id
       LEFT JOIN orders o ON dn.order_id = o.id
@@ -27,7 +27,7 @@ router.get('/delivery-note/:deliveryNoteId', authenticateToken, async (req, res)
   try {
     const { deliveryNoteId } = req.params;
     const query = `
-      SELECT e.*, dn.delivery_code, o.order_code, p.name as project_name
+      SELECT e.*, dn.delivery_code, o.order_code, p.project_name
       FROM equipment e
       LEFT JOIN delivery_notes dn ON e.delivery_note_id = dn.id
       LEFT JOIN orders o ON dn.order_id = o.id
@@ -48,7 +48,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const query = `
-      SELECT e.*, dn.delivery_code, o.order_code, p.name as project_name
+      SELECT e.*, dn.delivery_code, o.order_code, p.project_name
       FROM equipment e
       LEFT JOIN delivery_notes dn ON e.delivery_note_id = dn.id
       LEFT JOIN orders o ON dn.order_id = o.id

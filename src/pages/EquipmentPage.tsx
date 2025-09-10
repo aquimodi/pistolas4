@@ -1,18 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { Plus, Search, Calendar, Package, Server, Building, Edit3, Filter } from 'lucide-react';
 import { equipmentAPI, deliveryNotesAPI, ordersAPI, projectsAPI } from '../services/api';
 import { useNotification } from '../contexts/NotificationContext';
+import { useAuth } from '../contexts/AuthContext';
 import Breadcrumb from '../components/Breadcrumb';
 import LoadingSpinner from '../components/LoadingSpinner';
 import EquipmentModal from '../components/EquipmentModal';
 
 const EquipmentPage = () => {
+  const { deliveryNoteId } = useParams();
+  const { user } = useAuth();
   const { addNotification } = useNotification();
   const [equipment, setEquipment] = useState([]);
   const [deliveryNotes, setDeliveryNotes] = useState([]);
   const [orders, setOrders] = useState([]);
   const [projects, setProjects] = useState([]);
+  const [currentDeliveryNote, setCurrentDeliveryNote] = useState(null);
+  const [currentOrder, setCurrentOrder] = useState(null);
+  const [currentProject, setCurrentProject] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEquipment, setEditingEquipment] = useState(null);
@@ -23,12 +29,39 @@ const EquipmentPage = () => {
   const fetchData = async () => {
     try {
       setIsLoading(true);
-      const [equipmentData, deliveryNotesData, ordersData, projectsData] = await Promise.all([
-        equipmentAPI.getAll(),
-        deliveryNotesAPI.getAll(),
-        ordersAPI.getAll(),
-        projectsAPI.getAll()
-      ]);
+      
+      let equipmentData, deliveryNotesData, ordersData, projectsData;
+      
+      // Si hay deliveryNoteId específico, cargar solo el equipo de ese albarán
+      if (deliveryNoteId) {
+        [equipmentData, deliveryNotesData, ordersData, projectsData] = await Promise.all([
+          equipmentAPI.getByDeliveryNote(deliveryNoteId),
+          deliveryNotesAPI.getAll(),
+          ordersAPI.getAll(),
+          projectsAPI.getAll()
+        ]);
+        
+        // Encontrar el albarán, pedido y proyecto actuales
+        const deliveryNote = deliveryNotesData.find(dn => dn.id === parseInt(deliveryNoteId));
+        setCurrentDeliveryNote(deliveryNote || null);
+        
+        if (deliveryNote) {
+          const order = ordersData.find(o => o.id === deliveryNote.order_id);
+          setCurrentOrder(order || null);
+          
+          if (order) {
+            const project = projectsData.find(p => p.id === order.project_id);
+            setCurrentProject(project || null);
+          }
+        }
+      } else {
+        [equipmentData, deliveryNotesData, ordersData, projectsData] = await Promise.all([
+          equipmentAPI.getAll(),
+          deliveryNotesAPI.getAll(),
+          ordersAPI.getAll(),
+          projectsAPI.getAll()
+        ]);
+      }
       
       setEquipment(equipmentData);
       setDeliveryNotes(deliveryNotesData);
@@ -48,7 +81,7 @@ const EquipmentPage = () => {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [deliveryNoteId]);
 
   const handleCreateEquipment = (deliveryNoteId: string) => {
     setEditingEquipment(null);
@@ -110,17 +143,53 @@ const EquipmentPage = () => {
   return (
     <div className="p-6 space-y-6">
       {/* Breadcrumb */}
-      <Breadcrumb items={[{ label: 'Equipment', current: true }]} />
+      <Breadcrumb items={[
+        ...(currentProject ? [
+          { label: 'Projects', href: '/projects' },
+          { label: currentProject.project_name, href: `/projects/${currentProject.id}` }
+        ] : []),
+        ...(currentOrder ? [
+          { label: 'Orders', href: currentProject ? `/projects/${currentProject.id}/orders` : '/orders' }
+        ] : []),
+        ...(currentDeliveryNote ? [
+          { label: 'Delivery Notes', href: currentOrder ? `/orders/${currentOrder.id}/delivery-notes` : '/delivery-notes' }
+        ] : []),
+        { label: 'Equipment', current: true }
+      ]} />
 
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Inventario de Equipos</h1>
-          <p className="mt-1 text-gray-600">Gestiona todo el equipamiento del datacenter</p>
+          <h1 className="text-2xl font-bold text-gray-900">
+            {currentDeliveryNote 
+              ? `Equipos - ${currentDeliveryNote.delivery_code}`
+              : 'Inventario de Equipos'
+            }
+          </h1>
+          <p className="mt-1 text-gray-600">
+            {currentDeliveryNote 
+              ? `Gestiona los equipos del albarán ${currentDeliveryNote.delivery_code}`
+              : 'Gestiona todo el equipamiento del datacenter'
+            }
+          </p>
+          {currentProject && (
+            <p className="text-sm text-gray-500">
+              Proyecto: {currentProject.project_name} - Cliente: {currentProject.client}
+            </p>
+          )}
         </div>
         <div className="text-sm text-gray-600">
           Total equipos: {equipment.length}
         </div>
+        {(user?.role === 'admin' || user?.role === 'manager' || user?.role === 'operator') && deliveryNoteId && (
+          <button
+            onClick={() => handleCreateEquipment(deliveryNoteId)}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 transition-colors"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Registrar Equipo
+          </button>
+        )}
       </div>
 
       {/* Filters */}
@@ -182,12 +251,14 @@ const EquipmentPage = () => {
                       <p className="text-sm text-gray-600">S/N: {item.serial_number}</p>
                     </div>
                   </div>
-                  <button
-                    onClick={() => handleEditEquipment(item)}
-                    className="text-indigo-600 hover:text-indigo-900 p-1 rounded-full hover:bg-indigo-100"
-                  >
-                    <Edit3 className="w-4 h-4" />
-                  </button>
+                  {(user?.role === 'admin' || user?.role === 'manager' || user?.role === 'operator') && (
+                    <button
+                      onClick={() => handleEditEquipment(item)}
+                      className="text-indigo-600 hover:text-indigo-900 p-1 rounded-full hover:bg-indigo-100"
+                    >
+                      <Edit3 className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
 
                 <div className="space-y-2 mb-4">
@@ -265,7 +336,7 @@ const EquipmentPage = () => {
       {isModalOpen && (
         <EquipmentModal
           equipment={editingEquipment}
-          deliveryNoteId={editingEquipment?.delivery_note_id || ''}
+          deliveryNoteId={deliveryNoteId || editingEquipment?.delivery_note_id || ''}
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
           onSave={handleEquipmentSaved}

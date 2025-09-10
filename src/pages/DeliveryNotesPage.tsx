@@ -1,16 +1,21 @@
 import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import { Plus, Search, Calendar, Package, FileText, Edit3, Trash2, Building } from 'lucide-react';
 import { deliveryNotesAPI, ordersAPI, projectsAPI } from '../services/api';
 import { useNotification } from '../contexts/NotificationContext';
+import { useAuth } from '../contexts/AuthContext';
 import Breadcrumb from '../components/Breadcrumb';
 import LoadingSpinner from '../components/LoadingSpinner';
 import DeliveryNoteModal from '../components/DeliveryNoteModal';
 
 const DeliveryNotesPage = () => {
+  const { orderId } = useParams();
+  const { user } = useAuth();
   const { addNotification } = useNotification();
   const [deliveryNotes, setDeliveryNotes] = useState([]);
   const [orders, setOrders] = useState([]);
   const [projects, setProjects] = useState([]);
+  const [currentOrder, setCurrentOrder] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDeliveryNote, setEditingDeliveryNote] = useState(null);
@@ -20,11 +25,27 @@ const DeliveryNotesPage = () => {
   const fetchData = async () => {
     try {
       setIsLoading(true);
-      const [deliveryNotesData, ordersData, projectsData] = await Promise.all([
-        deliveryNotesAPI.getAll(),
-        ordersAPI.getAll(),
-        projectsAPI.getAll()
-      ]);
+      
+      // Si hay orderId específico, cargar solo los delivery notes de esa orden
+      let deliveryNotesData, ordersData, projectsData;
+      
+      if (orderId) {
+        [deliveryNotesData, ordersData, projectsData] = await Promise.all([
+          deliveryNotesAPI.getByOrder(orderId),
+          ordersAPI.getAll(),
+          projectsAPI.getAll()
+        ]);
+        
+        // Encontrar la orden actual
+        const order = ordersData.find(o => o.id === parseInt(orderId));
+        setCurrentOrder(order || null);
+      } else {
+        [deliveryNotesData, ordersData, projectsData] = await Promise.all([
+          deliveryNotesAPI.getAll(),
+          ordersAPI.getAll(),
+          projectsAPI.getAll()
+        ]);
+      }
       
       setDeliveryNotes(deliveryNotesData);
       setOrders(ordersData);
@@ -34,7 +55,7 @@ const DeliveryNotesPage = () => {
       addNotification({
         type: 'error',
         title: 'Error',
-        message: 'Failed to fetch delivery notes data'
+        message: 'Error al cargar los albaranes de entrega'
       });
     } finally {
       setIsLoading(false);
@@ -43,7 +64,7 @@ const DeliveryNotesPage = () => {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [orderId]);
 
   const handleCreateDeliveryNote = (orderId: string) => {
     setEditingDeliveryNote(null);
@@ -98,18 +119,25 @@ const DeliveryNotesPage = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Albaranes de Entrega</h1>
-          <p className="mt-1 text-gray-600">Gestiona los albaranes de entrega de equipos</p>
+          <h1 className="text-2xl font-bold text-gray-900">
+            {currentOrder ? `Albaranes - ${currentOrder.order_code}` : 'Todos los Albaranes'}
+          </h1>
+          <p className="mt-1 text-gray-600">
+            {currentOrder 
+              ? `Gestiona los albaranes del pedido ${currentOrder.order_code}`
+              : 'Gestiona todos los albaranes de entrega de equipos'
+            }
+          </p>
         </div>
       </div>
 
       {/* Search */}
-      <div className="mb-6">
+      <div className="flex flex-col sm:flex-row gap-4">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
           <input
             type="text"
-            placeholder="Buscar albaranes..."
+            placeholder="Buscar por código, transportista o tracking..."
             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -119,9 +147,14 @@ const DeliveryNotesPage = () => {
 
       {/* Orders and Delivery Notes */}
       <div className="space-y-6">
-        {orders.map((order: any) => {
-          const orderDeliveryNotes = deliveryNotes.filter(note => note.order_id === order.id);
+        {(currentOrder ? [currentOrder] : orders).map((order: any) => {
+          const orderDeliveryNotes = filteredDeliveryNotes.filter(note => note.order_id === order.id);
           const project = projects.find(p => p.id === order.project_id);
+          
+          // Si estamos en vista global, solo mostrar órdenes que tienen albaranes
+          if (!currentOrder && orderDeliveryNotes.length === 0) {
+            return null;
+          }
 
           return (
             <div key={order.id} className="bg-white rounded-lg shadow-sm border border-gray-200">
@@ -139,13 +172,15 @@ const DeliveryNotesPage = () => {
                       </div>
                     </div>
                   </div>
-                  <button
-                    onClick={() => handleCreateDeliveryNote(order.id)}
-                    className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-colors"
-                  >
-                    <Plus className="h-4 w-4 mr-1" />
-                    Nuevo Albarán
-                  </button>
+                  {(user?.role === 'admin' || user?.role === 'manager' || user?.role === 'operator') && (
+                    <button
+                      onClick={() => handleCreateDeliveryNote(order.id)}
+                      className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-colors"
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Nuevo Albarán
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -176,13 +211,21 @@ const DeliveryNotesPage = () => {
                           )}
                         </div>
 
-                        <div className="flex justify-end mt-3">
-                          <button
-                            onClick={() => handleEditDeliveryNote(note)}
-                            className="text-indigo-600 hover:text-indigo-900 p-1 rounded-full hover:bg-indigo-100"
+                        <div className="flex justify-between items-center mt-3">
+                          <Link
+                            to={`/delivery-notes/${note.id}/equipment`}
+                            className="text-sm text-blue-600 hover:text-blue-800 font-medium"
                           >
-                            <Edit3 className="w-4 h-4" />
-                          </button>
+                            Ver Equipos →
+                          </Link>
+                          {(user?.role === 'admin' || user?.role === 'manager' || user?.role === 'operator') && (
+                            <button
+                              onClick={() => handleEditDeliveryNote(note)}
+                              className="text-indigo-600 hover:text-indigo-900 p-1 rounded-full hover:bg-indigo-100"
+                            >
+                              <Edit3 className="w-4 h-4" />
+                            </button>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -200,7 +243,7 @@ const DeliveryNotesPage = () => {
         })}
       </div>
 
-      {orders.length === 0 && (
+      {(currentOrder ? [currentOrder] : orders).length === 0 && (
         <div className="text-center py-12">
           <FileText className="mx-auto h-12 w-12 text-gray-400" />
           <h3 className="mt-2 text-sm font-medium text-gray-900">No hay pedidos</h3>

@@ -112,12 +112,18 @@ app.get('/', (req, res) => {
 // Routes
 // Apply rate limiting only to login route
 app.use('/api/auth/login', loginLimiter);
+
+// Ensure auth routes are registered first
 app.use('/api/auth', authRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/delivery-notes', deliveryNoteRoutes);
 app.use('/api/equipment', equipmentRoutes);
 app.use('/api/monitoring', monitoringRoutes);
+
+// Add upload routes
+import uploadRoutes from './routes/upload.js';
+app.use('/api/upload', uploadRoutes);
 
 // Error handling
 app.use(errorHandler);

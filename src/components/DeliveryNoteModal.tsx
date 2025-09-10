@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import { deliveryNotesAPI } from '../services/api';
 import { useNotification } from '../contexts/NotificationContext';
 import LoadingSpinner from './LoadingSpinner';
+import FileUpload from './FileUpload';
 
 interface DeliveryNoteModalProps {
   deliveryNote: any;
@@ -31,6 +32,7 @@ const DeliveryNoteModal: React.FC<DeliveryNoteModalProps> = ({
     status: 'received'
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [isFileUploading, setIsFileUploading] = useState(false);
 
   useEffect(() => {
     if (deliveryNote) {
@@ -66,6 +68,16 @@ const DeliveryNoteModal: React.FC<DeliveryNoteModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (isFileUploading) {
+      addNotification({
+        type: 'warning',
+        title: 'Wait for Upload',
+        message: 'Please wait for file upload to complete'
+      });
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -103,6 +115,9 @@ const DeliveryNoteModal: React.FC<DeliveryNoteModalProps> = ({
     }
   };
 
+  const handleFileUploaded = (filePath: string) => {
+    setFormData(prev => ({ ...prev, attached_document_path: filePath }));
+  };
   if (!isOpen) return null;
 
   return (
@@ -198,15 +213,13 @@ const DeliveryNoteModal: React.FC<DeliveryNoteModalProps> = ({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Documento Adjunto (PDF, DOCX, XLSX)
-            </label>
-            <input
-              type="text"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-              value={formData.attached_document_path}
-              onChange={(e) => setFormData(prev => ({ ...prev, attached_document_path: e.target.value }))}
-              placeholder="/uploads/delivery_notes/ALB-2024-001.pdf"
+            <FileUpload
+              uploadType="delivery_notes"
+              onFileUploaded={handleFileUploaded}
+              currentFile={formData.attached_document_path}
+              accept=".pdf,.docx,.doc,.xlsx,.xls"
+              maxSize={10}
+              label="Documento del Albarán"
             />
           </div>
 

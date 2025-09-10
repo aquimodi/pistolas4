@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import { projectsAPI } from '../services/api';
 import { useNotification } from '../contexts/NotificationContext';
 import LoadingSpinner from './LoadingSpinner';
+import FileUpload from './FileUpload';
 
 interface ProjectModalProps {
   project: any;
@@ -24,6 +25,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, isOpen, onClose, o
     status: 'active'
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [isFileUploading, setIsFileUploading] = useState(false);
 
   useEffect(() => {
     if (project) {
@@ -53,6 +55,16 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, isOpen, onClose, o
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (isFileUploading) {
+      addNotification({
+        type: 'warning',
+        title: 'Wait for Upload',
+        message: 'Please wait for file upload to complete'
+      });
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -83,6 +95,9 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, isOpen, onClose, o
     }
   };
 
+  const handleFileUploaded = (filePath: string) => {
+    setFormData(prev => ({ ...prev, excel_file_path: filePath }));
+  };
   if (!isOpen) return null;
 
   return (
@@ -184,15 +199,13 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, isOpen, onClose, o
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Archivo Excel (Ruta)
-            </label>
-            <input
-              type="text"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-              value={formData.excel_file_path}
-              onChange={(e) => setFormData(prev => ({ ...prev, excel_file_path: e.target.value }))}
-              placeholder="/uploads/projects/proyecto_equipos.xlsx"
+            <FileUpload
+              uploadType="projects"
+              onFileUploaded={handleFileUploaded}
+              currentFile={formData.excel_file_path}
+              accept=".xlsx,.xls,.csv"
+              maxSize={10}
+              label="Archivo Excel del Proyecto"
             />
           </div>
 

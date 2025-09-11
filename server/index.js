@@ -1,5 +1,5 @@
 import dotenv from 'dotenv';
-import MSSQLSessionStore from 'connect-mssql-session';
+import connectMssql from 'connect-mssql';
 import { sql } from './config/database.js';
 
 dotenv.config();
@@ -17,7 +17,7 @@ import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 
 // Configurar el store de sesiones con SQL Server
-const SessionStore = MSSQLSessionStore(session);
+const MSSQLSessionStore = connectMssql(session);
 
 // Configuración del store de sesiones
 const sessionStore = new SessionStore({

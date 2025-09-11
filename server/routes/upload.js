@@ -1,12 +1,48 @@
 import express from 'express';
 import multer from 'multer';
 import path from 'path';
+import fs from 'fs';
 import { authenticateToken } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Configure multer for file uploads
-const storage = multer.memoryStorage(); // Store files in memory for processing
+// Function to ensure directory exists
+const ensureDirectoryExists = (dirPath) => {
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true });
+    console.log(`📁 Created directory: ${dirPath}`);
+  }
+};
+
+// Configure multer for persistent file storage
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    // Determine destination based on endpoint
+    const uploadType = req.originalUrl.includes('/projects') ? 'projects' : 'delivery_notes';
+    const uploadDir = path.join('uploads', uploadType);
+    
+    // Ensure directory exists
+    ensureDirectoryExists(uploadDir);
+    
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    // Generate unique filename with format: tipo_timestamp_random_nombre_sanitizado.ext
+    const uploadType = req.originalUrl.includes('/projects') ? 'project' : 'delivery_note';
+    const timestamp = Date.now();
+    const random = Math.floor(Math.random() * 1000);
+    const ext = path.extname(file.originalname);
+    const nameWithoutExt = path.basename(file.originalname, ext);
+    
+    // Sanitize filename
+    const sanitizedName = nameWithoutExt.replace(/[^a-zA-Z0-9._-]/g, '_');
+    
+    const uniqueFilename = `${uploadType}_${timestamp}_${random}_${sanitizedName}${ext}`;
+    
+    console.log(`📝 Generated filename: ${uniqueFilename}`);
+    cb(null, uniqueFilename);
+  }
+});
 
 const fileFilter = (req, file, cb) => {
   // Allowed file types
@@ -34,22 +70,6 @@ const upload = multer({
   fileFilter: fileFilter
 });
 
-// Helper function to sanitize filename
-const sanitizeFilename = (filename) => {
-  return filename.replace(/[^a-zA-Z0-9._-]/g, '_');
-};
-
-// Helper function to generate unique filename
-const generateUniqueFilename = (originalName, uploadType) => {
-  const timestamp = Date.now();
-  const random = Math.floor(Math.random() * 1000);
-  const ext = path.extname(originalName);
-  const name = path.basename(originalName, ext);
-  const sanitizedName = sanitizeFilename(name);
-  
-  return `${uploadType}_${timestamp}_${random}_${sanitizedName}${ext}`;
-};
-
 // Upload endpoint for project files
 router.post('/projects', authenticateToken, upload.single('file'), async (req, res) => {
   try {
@@ -61,28 +81,27 @@ router.post('/projects', authenticateToken, upload.single('file'), async (req, r
       return res.status(400).json({ error: 'No file provided' });
     }
 
-    console.log('📋 File details:', {
+    console.log('📋 Project file details:', {
       originalName: req.file.originalname,
       mimetype: req.file.mimetype,
-      size: req.file.size
+      size: req.file.size,
+      savedAs: req.file.filename,
+      physicalPath: req.file.path
     });
 
-    // Generate unique filename
-    const uniqueFilename = generateUniqueFilename(req.file.originalname, 'project');
-    
-    // In a real implementation, you would save the file to disk or cloud storage
-    // For now, we'll simulate the file path where it would be stored
-    const filePath = `/uploads/projects/${uniqueFilename}`;
+    // File is already saved to disk by multer
+    const publicPath = `/uploads/projects/${req.file.filename}`;
     
     console.log('✅ Project file processed successfully');
-    console.log('Simulated file path:', filePath);
+    console.log('📍 Physical path:', req.file.path);
+    console.log('🌐 Public URL:', publicPath);
     
     // Log the upload for audit purposes
-    console.log(`📊 AUDIT: User ${req.user?.username} uploaded project file: ${req.file.originalname} -> ${filePath}`);
+    console.log(`📊 AUDIT: User ${req.user?.username} uploaded project file: ${req.file.originalname} -> ${publicPath}`);
 
     res.json({
       success: true,
-      filePath: filePath,
+      filePath: publicPath,
       originalName: req.file.originalname,
       size: req.file.size,
       uploadType: 'project'
@@ -108,28 +127,27 @@ router.post('/delivery_notes', authenticateToken, upload.single('file'), async (
       return res.status(400).json({ error: 'No file provided' });
     }
 
-    console.log('📋 File details:', {
+    console.log('📋 Delivery note file details:', {
       originalName: req.file.originalname,
       mimetype: req.file.mimetype,
-      size: req.file.size
+      size: req.file.size,
+      savedAs: req.file.filename,
+      physicalPath: req.file.path
     });
 
-    // Generate unique filename
-    const uniqueFilename = generateUniqueFilename(req.file.originalname, 'delivery_note');
-    
-    // In a real implementation, you would save the file to disk or cloud storage
-    // For now, we'll simulate the file path where it would be stored
-    const filePath = `/uploads/delivery_notes/${uniqueFilename}`;
+    // File is already saved to disk by multer
+    const publicPath = `/uploads/delivery_notes/${req.file.filename}`;
     
     console.log('✅ Delivery note file processed successfully');
-    console.log('Simulated file path:', filePath);
+    console.log('📍 Physical path:', req.file.path);
+    console.log('🌐 Public URL:', publicPath);
     
     // Log the upload for audit purposes
-    console.log(`📊 AUDIT: User ${req.user?.username} uploaded delivery note file: ${req.file.originalname} -> ${filePath}`);
+    console.log(`📊 AUDIT: User ${req.user?.username} uploaded delivery note file: ${req.file.originalname} -> ${publicPath}`);
 
     res.json({
       success: true,
-      filePath: filePath,
+      filePath: publicPath,
       originalName: req.file.originalname,
       size: req.file.size,
       uploadType: 'delivery_note'

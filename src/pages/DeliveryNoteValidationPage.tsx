@@ -74,7 +74,7 @@ const DeliveryNoteValidationPage = () => {
       addNotification({
         type: 'error',
         title: 'Equipo No Encontrado',
-        message: \`El número de serie "${snToVerify}\" no pertenece a este albarán.`
+        message: `El número de serie "${snToVerify}" no pertenece a este albarán.`
       });
       return;
     }

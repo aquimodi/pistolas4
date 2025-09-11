@@ -113,7 +113,7 @@ export const equipmentAPI = {
   getByDeliveryNote: (deliveryNoteId: string) => apiService.get(`/equipment/delivery-note/${deliveryNoteId}`),
   getAll: () => apiService.get('/equipment'),
   create: (data: any) => apiService.post('/equipment', data),
-  update: (id: string, data: any) => apiService.put(`/equipment/${id}`, data)
+  update: (id: string, data: any) => apiService.put(`/equipment/${id}`, data),
   delete: (id: string) => apiService.delete(`/equipment/${id}`),
   verify: (serial_number: string, delivery_note_id: number) =>
     apiService.post('/equipment/verify', { serial_number, delivery_note_id }),

@@ -1,4 +1,6 @@
 import dotenv from 'dotenv';
+import MSSQLSessionStore from 'connect-mssql-session';
+import { sql } from './config/database.js';
 
 dotenv.config();
 
@@ -13,8 +15,28 @@ import session from 'express-session';
 import compression from 'compression';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
-// import logger from './utils/logger.js';
-// import { connectDB } from './config/database.js';
+
+// Configurar el store de sesiones con SQL Server
+const SessionStore = MSSQLSessionStore(session);
+
+// Configuración del store de sesiones
+const sessionStore = new SessionStore({
+  server: process.env.DB_SERVER || 'localhost',
+  port: parseInt(process.env.DB_PORT) || 1433,
+  database: process.env.DB_DATABASE || 'datacenter_equipment',
+  user: process.env.DB_USER || 'sa',
+  password: process.env.DB_PASSWORD || 'YourStrongPassword123!',
+  options: {
+    encrypt: false,
+    trustServerCertificate: true,
+    enableArithAbort: true
+  },
+  table: 'sessions', // Nombre de la tabla que creamos
+  ttl: 24 * 60 * 60 * 1000, // 24 horas en milisegundos
+  autoRemove: 'interval', // Limpiar sesiones expiradas automáticamente
+  autoRemoveInterval: 10 // Cada 10 minutos
+});
+
 import authRoutes from './routes/auth.js';
 import projectRoutes from './routes/projects.js';
 import orderRoutes from './routes/orders.js';
@@ -82,12 +104,17 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'datacenter_session_secret',
   resave: false,
   saveUninitialized: false,
+  store: sessionStore, // Usar nuestro store persistente
   cookie: { 
     secure: false, 
     httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    // Eliminar maxAge para que la sesión dure hasta cerrar navegador o logout
+    // maxAge: 24 * 60 * 60 * 1000, // 24 hours
     sameSite: 'lax'
-  }
+  },
+  // Configuraciones adicionales para sesiones persistentes
+  rolling: true, // Renovar la cookie en cada request
+  name: 'datacenter.session.id' // Nombre personalizado para la cookie
 }));
 
 app.use(morgan('combined'));

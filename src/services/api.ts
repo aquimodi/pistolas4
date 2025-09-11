@@ -119,6 +119,7 @@ export const equipmentAPI = {
     apiService.post('/equipment/verify', { serial_number, delivery_note_id }),
   unverify: (id: string) =>
     apiService.post(`/equipment/unverify/${id}`, {}),
+}
 
 export const monitoringAPI = {
   getStatus: () => apiService.get('/monitoring/status'),

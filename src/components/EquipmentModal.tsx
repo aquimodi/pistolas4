@@ -268,7 +268,6 @@ const EquipmentModal: React.FC<EquipmentModalProps> = ({
               onFileUploaded={(path) => setFormData(prev => ({ ...prev, verification_photo_path: path }))}
               currentFile={formData.verification_photo_path}
               accept="image/*"
-              label="Foto de Verificación (Opcional)"
             />
           </div>
 

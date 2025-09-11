@@ -218,7 +218,7 @@ const DeliveryNoteValidationPage = () => {
               onFileUploaded={setVerificationPhotoPath}
               currentFile={verificationPhotoPath}
               accept="image/*"
-            />
+            /> {/* Removed label prop */}
           </div>
           <button
             type="submit"

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { Upload, X, File, CheckCircle, AlertCircle } from 'lucide-react';
 import { useNotification } from '../contexts/NotificationContext';
+import { Upload, X, File, CheckCircle, AlertCircle, Camera } from 'lucide-react';
 
 interface FileUploadProps {
   onFileUploaded: (filePath: string) => void;
@@ -168,6 +168,8 @@ const FileUpload: React.FC<FileUploadProps> = ({
           className="hidden"
           disabled={isUploading}
         />
+        
+        {/* Display based on upload status */}
 
         <div className="text-center">
           {isUploading ? (
@@ -206,15 +208,20 @@ const FileUpload: React.FC<FileUploadProps> = ({
                 {error ? (
                   <AlertCircle className="h-8 w-8 text-red-500" />
                 ) : (
-                  <Upload className="h-8 w-8 text-gray-400" />
+                  uploadType === 'equipment' ? (
+                    <Camera className="h-8 w-8 text-gray-400" />
+                  ) : (
+                    <Upload className="h-8 w-8 text-gray-400" />
+                  )
                 )}
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-900">
-                  {isDragging ? 'Drop file here' : 'Drag & drop file here'}
+                  {isDragging ? 'Drop file here' : 
+                   uploadType === 'equipment' ? 'Drag & drop photo here' : 'Drag & drop file here'}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
-                  or click to browse • Max {maxSize}MB • {accept.replace(/\./g, '').toUpperCase()}
+                  or click to browse • Max {maxSize}MB • {uploadType === 'equipment' ? 'Images' : accept.replace(/\./g, '').toUpperCase()}
                 </p>
               </div>
               {error && (

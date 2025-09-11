@@ -105,6 +105,7 @@ export const ordersAPI = {
 export const deliveryNotesAPI = {
   getAll: () => apiService.get('/delivery-notes'),
   getByOrder: (orderId: string) => apiService.get(`/delivery-notes/order/${orderId}`),
+  getById: (id: string) => apiService.get(`/delivery-notes/${id}`),
   create: (data: any) => apiService.post('/delivery-notes', data),
   update: (id: string, data: any) => apiService.put(`/delivery-notes/${id}`, data)
 };

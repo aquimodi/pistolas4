@@ -143,7 +143,8 @@ router.put('/:id', authenticateToken, async (req, res) => {
       specifications, 
       condition_status,
       location,
-      status 
+      status,
+      verification_photo_path
     } = req.body;
     
     const query = `
@@ -158,6 +159,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
           condition_status = @param8,
           location = @param9,
           status = @param10,
+          verification_photo_path = @param11,
           updated_at = GETDATE()
       OUTPUT INSERTED.*
       WHERE id = @param0
@@ -174,7 +176,8 @@ router.put('/:id', authenticateToken, async (req, res) => {
       specifications,
       condition_status,
       location,
-      status
+      status,
+      verification_photo_path
     ]);
     
     if (result.length === 0) {
@@ -206,7 +209,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
 // Verify equipment by serial number
 router.post('/verify', authenticateToken, async (req, res) => {
   try {
-    const { serial_number, delivery_note_id } = req.body;
+    const { serial_number, delivery_note_id, verification_photo_path } = req.body;
 
     if (!serial_number || !delivery_note_id) {
       return res.status(400).json({ error: 'Serial number and delivery note ID are required for verification.' });
@@ -227,8 +230,8 @@ router.post('/verify', authenticateToken, async (req, res) => {
     }
 
     // Update is_verified status
-    const result = await executeQuery(
-      'UPDATE equipment SET is_verified = 1, updated_at = GETDATE() OUTPUT INSERTED.* WHERE id = @param0',
+    const result = await executeQuery(`
+      UPDATE equipment SET is_verified = 1, verification_photo_path = @param1, updated_at = GETDATE() OUTPUT INSERTED.* WHERE id = @param0`,
       [equipment[0].id]
     );
 

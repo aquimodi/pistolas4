@@ -18,6 +18,7 @@ import { deliveryNotesAPI, equipmentAPI } from '../services/api';
 import { useNotification } from '../contexts/NotificationContext';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Breadcrumb from '../components/Breadcrumb';
+import FileUpload from '../components/FileUpload';
 
 const DeliveryNoteValidationPage = () => {
   const { deliveryNoteId } = useParams();
@@ -26,6 +27,7 @@ const DeliveryNoteValidationPage = () => {
   const [equipment, setEquipment] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [serialNumberInput, setSerialNumberInput] = useState('');
+  const [verificationPhotoPath, setVerificationPhotoPath] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
   const fetchDeliveryNoteAndEquipment = async () => {
@@ -89,7 +91,7 @@ const DeliveryNoteValidationPage = () => {
     }
 
     try {
-      await equipmentAPI.verify(snToVerify, parseInt(deliveryNoteId!));
+      await equipmentAPI.verify(snToVerify, parseInt(deliveryNoteId!), verificationPhotoPath);
       addNotification({
         type: 'success',
         title: 'Equipo Verificado',
@@ -97,6 +99,7 @@ const DeliveryNoteValidationPage = () => {
       });
       // Refresh data to show updated status
       fetchDeliveryNoteAndEquipment();
+      setVerificationPhotoPath(''); // Clear photo path after successful verification
     } catch (error) {
       addNotification({
         type: 'error',
@@ -209,6 +212,14 @@ const DeliveryNoteValidationPage = () => {
               autoFocus
             />
           </div>
+          <div className="flex-1">
+            <FileUpload
+              uploadType="equipment"
+              onFileUploaded={setVerificationPhotoPath}
+              currentFile={verificationPhotoPath}
+              accept="image/*"
+            />
+          </div>
           <button
             type="submit"
             className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 transition-colors"
@@ -241,6 +252,11 @@ const DeliveryNoteValidationPage = () => {
                   <p className="text-sm text-gray-600">S/N: {item.serial_number}</p>
                   {item.asset_tag && (
                     <p className="text-xs text-gray-500">Asset Tag: {item.asset_tag}</p>
+                  )}
+                  {item.verification_photo_path && (
+                    <a href={item.verification_photo_path} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:underline">
+                      Ver Foto de Verificación
+                    </a>
                   )}
                 </div>
                 <div className="flex items-center space-x-3">

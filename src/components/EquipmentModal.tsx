@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import { equipmentAPI } from '../services/api';
 import { useNotification } from '../contexts/NotificationContext';
 import LoadingSpinner from './LoadingSpinner';
+import FileUpload from './FileUpload';
 
 interface EquipmentModalProps {
   equipment: any;
@@ -29,7 +30,8 @@ const EquipmentModal: React.FC<EquipmentModalProps> = ({
     specifications: '',
     condition_status: 'new',
     location: '',
-    status: 'received'
+    status: 'received',
+    verification_photo_path: ''
   });
   const [isLoading, setIsLoading] = useState(false);
 
@@ -44,7 +46,8 @@ const EquipmentModal: React.FC<EquipmentModalProps> = ({
         specifications: equipment.specifications || '',
         condition_status: equipment.condition_status || 'new',
         location: equipment.location || '',
-        status: equipment.status || 'received'
+        status: equipment.status || 'received',
+        verification_photo_path: equipment.verification_photo_path || ''
       });
     } else {
       setFormData({
@@ -56,7 +59,8 @@ const EquipmentModal: React.FC<EquipmentModalProps> = ({
         specifications: '',
         condition_status: 'new',
         location: '',
-        status: 'received'
+        status: '',
+        verification_photo_path: ''
       });
     }
   }, [equipment]);
@@ -255,6 +259,16 @@ const EquipmentModal: React.FC<EquipmentModalProps> = ({
               value={formData.location}
               onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
               placeholder="ej. Madrid DC-1 Rack A1-U01"
+            />
+          </div>
+
+          <div>
+            <FileUpload
+              uploadType="equipment"
+              onFileUploaded={(path) => setFormData(prev => ({ ...prev, verification_photo_path: path }))}
+              currentFile={formData.verification_photo_path}
+              accept="image/*"
+              label="Foto de Verificación (Opcional)"
             />
           </div>
 

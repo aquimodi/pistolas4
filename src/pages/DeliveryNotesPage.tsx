@@ -213,20 +213,30 @@ const DeliveryNotesPage = () => {
                         </div>
 
                         <div className="flex justify-between items-center mt-3">
-                          <Link
-                            to={`/delivery-notes/${note.id}/equipment`}
-                            className="text-sm text-blue-600 hover:text-blue-800 font-medium"
-                          >
-                            Ver Equipos →
-                          </Link>
-                          {(user?.role === 'admin' || user?.role === 'manager' || user?.role === 'operator') && (
-                            <button
-                              onClick={() => handleEditDeliveryNote(note)}
-                              className="text-indigo-600 hover:text-indigo-900 p-1 rounded-full hover:bg-indigo-100"
+                          <div className="flex space-x-2">
+                            <Link
+                              to={`/delivery-notes/${note.id}/equipment`}
+                              className="text-sm text-blue-600 hover:text-blue-800 font-medium"
                             >
-                              <Edit3 className="w-4 h-4" />
-                            </button>
-                          )}
+                              Ver Equipos →
+                            </Link>
+                            {(user?.role === 'admin' || user?.role === 'manager' || user?.role === 'operator') && (
+                              <Link
+                                to={`/delivery-notes/${note.id}/validate`}
+                                className="text-sm text-purple-600 hover:text-purple-800 font-medium"
+                              >
+                                Validar →
+                              </Link>
+                            )}
+                          </div>
+                            {(user?.role === 'admin' || user?.role === 'manager' || user?.role === 'operator') && (
+                              <button
+                                onClick={() => handleEditDeliveryNote(note)}
+                                className="text-indigo-600 hover:text-indigo-900 p-1 rounded-full hover:bg-indigo-100"
+                              >
+                                <Edit3 className="w-4 h-4" />
+                              </button>
+                            )}
                         </div>
                       </div>
                     ))}

@@ -9,6 +9,7 @@ import OrdersPage from './pages/OrdersPage';
 import DeliveryNotesPage from './pages/DeliveryNotesPage';
 import EquipmentPage from './pages/EquipmentPage';
 import MonitoringPage from './pages/MonitoringPage';
+import DeliveryNoteValidationPage from './pages/DeliveryNoteValidationPage';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import NotificationContainer from './components/NotificationContainer';
@@ -39,6 +40,7 @@ function App() {
                 <Route path="orders/:orderId/delivery-notes" element={<DeliveryNotesPage />} />
                 <Route path="delivery-notes" element={<DeliveryNotesPage />} />
                 <Route path="delivery-notes/:deliveryNoteId/equipment" element={<EquipmentPage />} />
+                <Route path="delivery-notes/:deliveryNoteId/validate" element={<DeliveryNoteValidationPage />} />
                 <Route path="equipment" element={<EquipmentPage />} />
                 <Route path="monitoring" element={<MonitoringPage />} />
               </Route>

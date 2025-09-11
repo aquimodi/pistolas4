@@ -83,7 +83,7 @@ const DeliveryNoteValidationPage = () => {
       addNotification({
         type: 'warning',
         title: 'Equipo Ya Verificado',
-        message: \`El equipo con S/N "${snToVerify}\" ya ha sido verificado.`
+        message: `El equipo con S/N "${snToVerify}" ya ha sido verificado.`
       });
       return;
     }
@@ -93,7 +93,7 @@ const DeliveryNoteValidationPage = () => {
       addNotification({
         type: 'success',
         title: 'Equipo Verificado',
-        message: \`El equipo con S/N "${snToVerify}\" ha sido verificado correctamente.`
+        message: `El equipo con S/N "${snToVerify}" ha sido verificado correctamente.`
       });
       // Refresh data to show updated status
       fetchDeliveryNoteAndEquipment();

@@ -203,4 +203,52 @@ router.delete('/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// Verify equipment by serial number
+router.post('/verify', authenticateToken, async (req, res) => {
+  try {
+    const { serial_number, delivery_note_id } = req.body;
+
+    if (!serial_number || !delivery_note_id) {
+      return res.status(400).json({ error: 'Serial number and delivery note ID are required for verification.' });
+    }
+
+    // Find the equipment by serial number and delivery note ID
+    const equipment = await executeQuery(
+      'SELECT id, is_verified FROM equipment WHERE serial_number = @param0 AND delivery_note_id = @param1',
+      [serial_number, delivery_note_id]
+    );
+
+    if (equipment.length === 0) {
+      return res.status(404).json({ error: 'Equipment not found in this delivery note.' });
+    }
+
+    if (equipment[0].is_verified) {
+      return res.status(200).json({ message: 'Equipment already verified.', equipment: equipment[0] });
+    }
+
+    // Update is_verified status
+    const result = await executeQuery(
+      'UPDATE equipment SET is_verified = 1, updated_at = GETDATE() OUTPUT INSERTED.* WHERE id = @param0',
+      [equipment[0].id]
+    );
+
+    res.json({ message: 'Equipment verified successfully.', equipment: result[0] });
+  } catch (error) {
+    console.error('Error verifying equipment:', error);
+    res.status(500).json({ error: 'Failed to verify equipment.' });
+  }
+});
+
+// Unverify equipment by ID (for "Deshacer" functionality)
+router.post('/unverify/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await executeQuery('UPDATE equipment SET is_verified = 0, updated_at = GETDATE() OUTPUT INSERTED.* WHERE id = @param0', [id]);
+    res.json({ message: 'Equipment unverified successfully.', equipment: result[0] });
+  } catch (error) {
+    console.error('Error un-verifying equipment:', error);
+    res.status(500).json({ error: 'Failed to un-verify equipment.' });
+  }
+});
+
 export default router;

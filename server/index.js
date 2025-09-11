@@ -20,7 +20,7 @@ import rateLimit from 'express-rate-limit';
 const MSSQLSessionStore = connectMssql(session);
 
 // Configuración del store de sesiones
-const sessionStore = new SessionStore({
+const sessionStore = new MSSQLSessionStore({
   server: process.env.DB_SERVER || 'localhost',
   port: parseInt(process.env.DB_PORT) || 1433,
   database: process.env.DB_DATABASE || 'datacenter_equipment',

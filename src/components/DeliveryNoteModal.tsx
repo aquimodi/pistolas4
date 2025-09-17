@@ -245,7 +245,6 @@ const DeliveryNoteModal: React.FC<DeliveryNoteModalProps> = ({
               value={formData.status}
               onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value }))}
             >
-              <option value="pending_receive">Pending Receive</option>
               <option value="received">Recibido</option>
               <option value="processing">Procesando</option>
               <option value="completed">Completado</option>

@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import {
   CheckCircle,
   XCircle,
+  Scan,
   ArrowLeft,
   RefreshCcw,
   AlertTriangle,
@@ -17,7 +18,7 @@ import { deliveryNotesAPI, equipmentAPI } from '../services/api';
 import { useNotification } from '../contexts/NotificationContext';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Breadcrumb from '../components/Breadcrumb';
-import CameraCaptureButton from '../components/CameraCaptureButton';
+import FileUpload from '../components/FileUpload';
 
 const DeliveryNoteValidationPage = () => {
   const { deliveryNoteId } = useParams();
@@ -26,7 +27,7 @@ const DeliveryNoteValidationPage = () => {
   const [equipment, setEquipment] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [serialNumberInput, setSerialNumberInput] = useState('');
-  const [verificationPhoto, setVerificationPhoto] = useState<File | null>(null);
+  const [verificationPhotoPath, setVerificationPhotoPath] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
   const fetchDeliveryNoteAndEquipment = async () => {
@@ -67,15 +68,6 @@ const DeliveryNoteValidationPage = () => {
     const snToVerify = serialNumberInput.trim();
     setSerialNumberInput(''); // Clear input immediately
 
-    if (!verificationPhoto) {
-      addNotification({
-        type: 'warning',
-        title: 'Foto Requerida',
-        message: 'Por favor, toma una foto del equipo antes de verificar.'
-      });
-      return;
-    }
-
     const itemToVerify = equipment.find(
       (item) => item.serial_number.toLowerCase() === snToVerify.toLowerCase()
     );
@@ -99,26 +91,7 @@ const DeliveryNoteValidationPage = () => {
     }
 
     try {
-      // First upload the photo
-      const formData = new FormData();
-      formData.append('file', verificationPhoto);
-
-      const uploadResponse = await fetch('/api/upload/delivery_notes', {
-        method: 'POST',
-        credentials: 'include',
-        body: formData,
-      });
-
-      if (!uploadResponse.ok) {
-        throw new Error('Failed to upload verification photo');
-      }
-
-      const uploadResult = await uploadResponse.json();
-      const photoPath = uploadResult.filePath;
-
-      // Then verify with the uploaded photo path
-      await equipmentAPI.verify(snToVerify, parseInt(deliveryNoteId!), photoPath);
-      
+      await equipmentAPI.verify(snToVerify, parseInt(deliveryNoteId!), verificationPhotoPath);
       addNotification({
         type: 'success',
         title: 'Equipo Verificado',
@@ -126,7 +99,7 @@ const DeliveryNoteValidationPage = () => {
       });
       // Refresh data to show updated status
       fetchDeliveryNoteAndEquipment();
-      setVerificationPhoto(null); // Clear photo after successful verification
+      setVerificationPhotoPath(''); // Clear photo path after successful verification
     } catch (error) {
       addNotification({
         type: 'error',
@@ -152,15 +125,6 @@ const DeliveryNoteValidationPage = () => {
         message: error instanceof Error ? error.message : 'Error al deshacer la verificación.'
       });
     }
-  };
-
-  const handlePhotoCapture = (photoFile: File) => {
-    setVerificationPhoto(photoFile);
-    addNotification({
-      type: 'success',
-      title: 'Foto Capturada',
-      message: 'Foto del equipo capturada correctamente. Ahora ingresa el número de serie.'
-    });
   };
 
   const verifiedCount = equipment.filter((item) => item.is_verified).length;
@@ -235,52 +199,35 @@ const DeliveryNoteValidationPage = () => {
 
       {/* Verification Input */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div className="space-y-6">
-          {/* Camera Capture Section */}
-          <div>
-            <h3 className="text-lg font-medium text-gray-900 mb-4">
-              1. Capturar Foto del Equipo
-            </h3>
-            <CameraCaptureButton 
-              onPhotoCapture={handlePhotoCapture}
-              className="w-full"
-            />
-            {verificationPhoto && (
-              <div className="mt-2 flex items-center text-green-600 text-sm">
-                <CheckCircle className="h-4 w-4 mr-1" />
-                Foto capturada correctamente
-              </div>
-            )}
-          </div>
-          
-          {/* Serial Number Input Section */}
-          <div>
-            <h3 className="text-lg font-medium text-gray-900 mb-4">
-              2. Ingresar Número de Serie
-            </h3>
-            <form onSubmit={handleSerialNumberSubmit} className="flex items-center space-x-4">
-              <div className="relative flex-1">
+        <form onSubmit={handleSerialNumberSubmit} className="flex items-center space-x-4">
+          <div className="relative flex-1">
+            <Scan className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
             <input
               ref={inputRef}
               type="text"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg"
+              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg"
               placeholder="Escanear o introducir número de serie..."
               value={serialNumberInput}
               onChange={(e) => setSerialNumberInput(e.target.value)}
               autoFocus
             />
           </div>
+          <div className="flex-1">
+            <FileUpload
+              uploadType="equipment"
+              onFileUploaded={setVerificationPhotoPath}
+              currentFile={verificationPhotoPath}
+              accept="image/*"
+            /> {/* Removed label prop */}
+          </div>
           <button
             type="submit"
-                disabled={!verificationPhoto}
             className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 transition-colors"
           >
             <CheckCircle className="h-5 w-5 mr-2" />
             Verificar
           </button>
         </form>
-          </div>
-        </div>
       </div>
 
       {/* Equipment List */}

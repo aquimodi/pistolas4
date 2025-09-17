@@ -76,7 +76,8 @@ router.post('/', authenticateToken, async (req, res) => {
       carrier,
       tracking_number,
       attached_document_path,
-      notes 
+      notes,
+      status
     } = req.body;
     
     // Validation
@@ -110,7 +111,7 @@ router.post('/', authenticateToken, async (req, res) => {
       tracking_number,
       attached_document_path,
       notes || '',
-      status || 'pending_receive',
+      req.user?.id || 1
     ]);
     
     res.status(201).json(result[0]);

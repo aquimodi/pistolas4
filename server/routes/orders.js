@@ -72,7 +72,7 @@ router.post('/', authenticateToken, async (req, res) => {
       vendor, 
       description, 
       expected_delivery_date, 
-      status 
+      status
     } = req.body;
     
     // Validation

@@ -78,12 +78,12 @@ router.put('/:id', authenticateToken, authorizeRole(['admin', 'manager']), async
       delivery_date, 
       teams_folder_url, 
       excel_file_path, 
-      status 
+      status || 'pending_receive'
     } = req.body;
 
     const result = await executeQuery(
       'UPDATE projects SET ritm_code = @param1, project_name = @param2, client = @param3, datacenter = @param4, delivery_date = @param5, teams_folder_url = @param6, excel_file_path = @param7, status = @param8, updated_at = GETDATE() OUTPUT INSERTED.* WHERE id = @param0',
-      [id, ritm_code, project_name, client, datacenter, delivery_date, teams_folder_url, excel_file_path, status]
+      [id, ritm_code, project_name, client, datacenter, delivery_date, teams_folder_url, excel_file_path, status || 'pending_receive']
     );
 
     if (result.length === 0) {

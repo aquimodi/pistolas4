@@ -76,7 +76,8 @@ router.post('/', authenticateToken, async (req, res) => {
       carrier,
       tracking_number,
       attached_document_path,
-      notes 
+      notes,
+      status
     } = req.body;
     
     // Validation

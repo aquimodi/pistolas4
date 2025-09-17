@@ -110,7 +110,7 @@ router.post('/', authenticateToken, async (req, res) => {
       tracking_number,
       attached_document_path,
       notes || '',
-      req.user?.id || 1
+      status || 'pending_receive',
     ]);
     
     res.status(201).json(result[0]);

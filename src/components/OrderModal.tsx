@@ -51,7 +51,7 @@ const OrderModal: React.FC<OrderModalProps> = ({ order, projectId, isOpen, onClo
         vendor: '',
         description: '',
         expected_delivery_date: '',
-        status: 'pending'
+        status: 'pending_receive'
       });
       setSelectedProjectId(projectId || '');
     }
@@ -210,9 +210,11 @@ const OrderModal: React.FC<OrderModalProps> = ({ order, projectId, isOpen, onClo
               value={formData.status}
               onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value }))}
             >
+              <option value="pending_receive">Pending Receive</option>
               <option value="pending">Pending</option>
               <option value="received">Received</option>
               <option value="partial">Partially Received</option>
+              <option value="completed">Completed</option>
               <option value="cancelled">Cancelled</option>
             </select>
           </div>

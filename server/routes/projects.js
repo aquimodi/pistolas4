@@ -78,7 +78,7 @@ router.put('/:id', authenticateToken, authorizeRole(['admin', 'manager']), async
       delivery_date, 
       teams_folder_url, 
       excel_file_path, 
-      status 
+      status || 'pending_receive'
     } = req.body;
 
     const result = await executeQuery(

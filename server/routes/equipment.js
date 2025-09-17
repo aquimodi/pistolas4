@@ -235,6 +235,9 @@ router.post('/verify', authenticateToken, async (req, res) => {
       [equipment[0].id]
     );
 
+    // Verificar y actualizar estado del albarán después de la verificación
+    await checkAndUpdateDeliveryNoteStatus(delivery_note_id);
+
     res.json({ message: 'Equipment verified successfully.', equipment: result[0] });
   } catch (error) {
     console.error('Error verifying equipment:', error);
@@ -246,7 +249,17 @@ router.post('/verify', authenticateToken, async (req, res) => {
 router.post('/unverify/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
+    
+    // Obtener delivery_note_id antes de desverificar
+    const equipmentData = await executeQuery('SELECT delivery_note_id FROM equipment WHERE id = @param0', [id]);
+    
     const result = await executeQuery('UPDATE equipment SET is_verified = 0, updated_at = GETDATE() OUTPUT INSERTED.* WHERE id = @param0', [id]);
+    
+    // Verificar y actualizar estado del albarán después de la desverificación
+    if (equipmentData.length > 0) {
+      await checkAndUpdateDeliveryNoteStatus(equipmentData[0].delivery_note_id);
+    }
+    
     res.json({ message: 'Equipment unverified successfully.', equipment: result[0] });
   } catch (error) {
     console.error('Error un-verifying equipment:', error);

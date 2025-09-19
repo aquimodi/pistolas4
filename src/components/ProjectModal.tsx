@@ -30,6 +30,91 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, isOpen, onClose, o
   const [serviceNowFetched, setServiceNowFetched] = useState(false);
   const [debounceTimer, setDebounceTimer] = useState<NodeJS.Timeout | null>(null);
 
+  // Función para validar formato RITM
+  const validateRITMFormat = (ritmCode: string): boolean => {
+    return /^RITM\d{4,}$/.test(ritmCode);
+  };
+
+  // Función para manejar cambios en el campo RITM
+  const handleRITMChange = (value: string) => {
+    setFormData(prev => ({ ...prev, ritm_code: value }));
+    
+    // Si estamos editando un proyecto existente, no hacer fetch automático
+    if (project) return;
+    
+    // Limpiar timer anterior
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+    }
+    
+    // Si el formato no es válido, limpiar el estado
+    if (!validateRITMFormat(value)) {
+      setServiceNowFetched(false);
+      return;
+    }
+    
+    // Debounce para evitar llamadas excesivas
+    const timer = setTimeout(async () => {
+      await fetchServiceNowData(value);
+    }, 1000);
+    
+    setDebounceTimer(timer);
+  };
+
+  // Función para obtener datos de ServiceNow
+  const fetchServiceNowData = async (ritmCode: string) => {
+    if (!validateRITMFormat(ritmCode)) return;
+    
+    setIsFetchingServiceNow(true);
+    setServiceNowFetched(false);
+    
+    try {
+      const response = await projectsAPI.fetchFromServiceNow(ritmCode);
+      
+      if (response.success && response.data) {
+        const data = response.data;
+        
+        // Auto-completar campos con datos de ServiceNow
+        setFormData(prev => ({
+          ...prev,
+          project_name: data.project_name || prev.project_name,
+          client: data.client || prev.client,
+          datacenter: data.datacenter || prev.datacenter,
+          excel_file_path: data.excel_file_path || prev.excel_file_path
+        }));
+        
+        setServiceNowFetched(true);
+        
+        addNotification({
+          type: 'success',
+          title: 'Datos Obtenidos',
+          message: 'Información del proyecto obtenida desde ServiceNow'
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching ServiceNow data:', error);
+      
+      let errorMessage = 'Error al obtener datos de ServiceNow';
+      if (error instanceof Error) {
+        if (error.message.includes('already exists')) {
+          errorMessage = 'Este RITM ya existe en el sistema';
+        } else if (error.message.includes('No data found')) {
+          errorMessage = 'No se encontraron datos para este RITM';
+        } else if (error.message.includes('Authentication')) {
+          errorMessage = 'Error de autenticación con ServiceNow';
+        }
+      }
+      
+      addNotification({
+        type: 'error',
+        title: 'Error ServiceNow',
+        message: errorMessage
+      });
+    } finally {
+      setIsFetchingServiceNow(false);
+    }
+  };
+
   useEffect(() => {
     if (project) {
       setFormData({

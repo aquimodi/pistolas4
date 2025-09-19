@@ -18,7 +18,9 @@ const ensureDirectoryExists = (dirPath) => {
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     // Determine destination based on endpoint
-    const uploadType = req.originalUrl.includes('/projects') ? 'projects' : 'delivery_notes';
+    const uploadType = req.originalUrl.includes('/projects') ? 'projects' : 
+                       req.originalUrl.includes('/equipment') ? 'equipment' : 
+                       'delivery_notes';
     const uploadDir = path.join('uploads', uploadType);
     
     // Ensure directory exists
@@ -28,7 +30,9 @@ const storage = multer.diskStorage({
   },
   filename: function (req, file, cb) {
     // Generate unique filename with format: tipo_timestamp_random_nombre_sanitizado.ext
-    const uploadType = req.originalUrl.includes('/projects') ? 'project' : 'delivery_note';
+    const uploadType = req.originalUrl.includes('/projects') ? 'project' : 
+                       req.originalUrl.includes('/equipment') ? 'equipment' : 
+                       'delivery_note';
     const timestamp = Date.now();
     const random = Math.floor(Math.random() * 1000);
     const ext = path.extname(file.originalname);
@@ -46,7 +50,7 @@ const storage = multer.diskStorage({
 
 const fileFilter = (req, file, cb) => {
   // Allowed file types
-  const allowedTypes = [
+  let allowedTypes = [
     'application/pdf',
     'application/msword',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -54,11 +58,25 @@ const fileFilter = (req, file, cb) => {
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     'text/csv'
   ];
+  
+  // Allow images for equipment uploads
+  if (req.originalUrl.includes('/equipment')) {
+    allowedTypes = [
+      'image/jpeg',
+      'image/jpg',
+      'image/png',
+      'image/webp',
+      'image/gif'
+    ];
+  }
 
   if (allowedTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error('Invalid file type. Only PDF, DOC, DOCX, XLS, XLSX, and CSV files are allowed.'), false);
+    const allowedExtensions = req.originalUrl.includes('/equipment') 
+      ? 'JPEG, JPG, PNG, WEBP, GIF' 
+      : 'PDF, DOC, DOCX, XLS, XLSX, CSV';
+    cb(new Error(`Invalid file type. Only ${allowedExtensions} files are allowed.`), false);
   }
 };
 

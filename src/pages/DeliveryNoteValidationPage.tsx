@@ -99,7 +99,7 @@ const DeliveryNoteValidationPage = () => {
       const formData = new FormData();
       formData.append('file', verificationPhoto);
 
-      const uploadResponse = await fetch('/api/upload/delivery_notes', {
+      const uploadResponse = await fetch('/api/upload/equipment', {
         method: 'POST',
         credentials: 'include',
         body: formData,

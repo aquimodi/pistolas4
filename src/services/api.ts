@@ -92,7 +92,8 @@ export const projectsAPI = {
   getById: (id: string) => apiService.get(`/projects/${id}`),
   create: (data: any) => apiService.post('/projects', data),
   update: (id: string, data: any) => apiService.put(`/projects/${id}`, data),
-  delete: (id: string) => apiService.delete(`/projects/${id}`)
+  delete: (id: string) => apiService.delete(`/projects/${id}`),
+  fetchFromServiceNow: (ritmCode: string) => apiService.post('/projects/fetch-from-servicenow', { ritm_code: ritmCode })
 };
 
 export const ordersAPI = {

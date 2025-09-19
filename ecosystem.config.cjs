@@ -25,7 +25,10 @@ module.exports = {
         DB_PORT: 1433,
         DB_DATABASE: 'datacenter_equipment',
         DB_USER: 'sa',
-        JWT_SECRET: 'datacenter_production_secret_2024'
+        RATE_LIMIT_MAX_REQUESTS: 100,
+        // ServiceNow API integration
+        ALMA_API_URL: process.env.ALMA_API_URL || '',
+        ALMA_AUTH_TOKEN: process.env.ALMA_AUTH_TOKEN || ''
       },
       
       // Development environment
@@ -33,7 +36,10 @@ module.exports = {
         NODE_ENV: 'development',
         PORT: 3001,
         SERVER_IP: 'localhost',
-        ALLOWED_ORIGINS: 'http://localhost:5173,http://localhost:3000'
+        ALLOWED_ORIGINS: 'http://localhost:5173,http://localhost:3000',
+        // ServiceNow API integration (development)
+        ALMA_API_URL: process.env.ALMA_API_URL || '',
+        ALMA_AUTH_TOKEN: process.env.ALMA_AUTH_TOKEN || ''
       },
       
       // Monitoring and logging

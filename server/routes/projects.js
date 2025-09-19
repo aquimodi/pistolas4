@@ -2,6 +2,7 @@ import express from 'express';
 import { executeQuery } from '../config/database.js';
 import logger from '../utils/logger.js';
 import { authenticateToken, authorizeRole } from '../middleware/auth.js';
+import { fetchServiceNowData } from '../services/almaService.js';
 
 const router = express.Router();
 
@@ -114,6 +115,70 @@ router.delete('/:id', authenticateToken, authorizeRole(['admin']), async (req, r
   } catch (error) {
     logger.error('Error deleting project:', error);
     res.status(500).json({ error: 'Failed to delete project' });
+  }
+});
+
+// Fetch project data from ServiceNow
+router.post('/fetch-from-servicenow', authenticateToken, async (req, res) => {
+  try {
+    const { ritm_code } = req.body;
+
+    if (!ritm_code) {
+      return res.status(400).json({ error: 'RITM code is required' });
+    }
+
+    // Validate RITM format
+    if (!ritm_code.match(/^RITM\d{4,}$/)) {
+      return res.status(400).json({ 
+        error: 'Invalid RITM format. Must start with "RITM" followed by numbers.' 
+      });
+    }
+
+    console.log(`🔍 Fetching ServiceNow data for RITM: ${ritm_code} by user: ${req.user?.username}`);
+
+    // Check if RITM already exists in database
+    const existingProjects = await executeQuery(
+      'SELECT id, ritm_code, project_name FROM projects WHERE ritm_code = @param0',
+      [ritm_code]
+    );
+
+    if (existingProjects.length > 0) {
+      return res.status(409).json({ 
+        error: `RITM ${ritm_code} already exists in the system as project: ${existingProjects[0].project_name}`,
+        existing_project: existingProjects[0]
+      });
+    }
+
+    // Fetch data from ServiceNow
+    const serviceNowData = await fetchServiceNowData(ritm_code);
+
+    logger.info(`ServiceNow data fetched successfully for RITM: ${ritm_code} by ${req.user?.username}`);
+
+    res.json({
+      success: true,
+      data: serviceNowData,
+      message: 'Project data fetched from ServiceNow successfully'
+    });
+
+  } catch (error) {
+    console.error('❌ ServiceNow fetch error:', error.message);
+    logger.error(`ServiceNow fetch error for user ${req.user?.username}: ${error.message}`);
+    
+    // Return appropriate error based on error type
+    if (error.message.includes('Authentication failed')) {
+      return res.status(401).json({ error: error.message });
+    }
+    if (error.message.includes('Access denied')) {
+      return res.status(403).json({ error: error.message });
+    }
+    if (error.message.includes('No data found')) {
+      return res.status(404).json({ error: error.message });
+    }
+    
+    res.status(500).json({ 
+      error: 'Failed to fetch project data from ServiceNow',
+      details: error.message 
+    });
   }
 });
 

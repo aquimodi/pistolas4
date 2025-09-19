@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, Search, CheckCircle, AlertTriangle } from 'lucide-react';
 import { projectsAPI } from '../services/api';
 import { useNotification } from '../contexts/NotificationContext';
 import LoadingSpinner from './LoadingSpinner';
@@ -26,6 +26,9 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, isOpen, onClose, o
   });
   const [isLoading, setIsLoading] = useState(false);
   const [isFileUploading, setIsFileUploading] = useState(false);
+  const [isFetchingServiceNow, setIsFetchingServiceNow] = useState(false);
+  const [serviceNowFetched, setServiceNowFetched] = useState(false);
+  const [debounceTimer, setDebounceTimer] = useState<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (project) {
@@ -39,6 +42,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, isOpen, onClose, o
         excel_file_path: project.excel_file_path || '',
         status: project.status || 'active'
       });
+      setServiceNowFetched(true); // Existing project, no need to fetch from ServiceNow
     } else {
       setFormData({
         ritm_code: '',
@@ -50,6 +54,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, isOpen, onClose, o
         excel_file_path: '',
         status: 'active'
       });
+      setServiceNowFetched(false);
     }
   }, [project]);
 
@@ -117,22 +122,61 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, isOpen, onClose, o
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
               Código RITM (ServiceNow) *
+              {isFetchingServiceNow && (
+                <div className="ml-2 flex items-center">
+                  <LoadingSpinner size="small" />
+                  <span className="ml-1 text-xs text-blue-600">Obteniendo datos...</span>
+                </div>
+              )}
+              {serviceNowFetched && !project && (
+                <div className="ml-2 flex items-center text-green-600">
+                  <CheckCircle className="h-4 w-4" />
+                  <span className="ml-1 text-xs">Datos obtenidos</span>
+                </div>
+              )}
             </label>
-            <input
-              type="text"
-              required
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-              value={formData.ritm_code}
-              onChange={(e) => setFormData(prev => ({ ...prev, ritm_code: e.target.value }))}
-              placeholder="ej. RITM0012345"
-            />
+            <div className="relative">
+              <input
+                type="text"
+                required
+                disabled={project ? true : false} // Disable if editing existing project
+                className={`w-full px-3 py-2 pr-10 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
+                  project ? 'bg-gray-100 cursor-not-allowed' : ''
+                } ${
+                  serviceNowFetched && !project ? 'border-green-300 bg-green-50' : ''
+                }`}
+                value={formData.ritm_code}
+                onChange={(e) => handleRITMChange(e.target.value.toUpperCase())}
+                placeholder="ej. RITM0012345"
+              />
+              {!project && validateRITMFormat(formData.ritm_code) && (
+                <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                  {isFetchingServiceNow ? (
+                    <Search className="h-4 w-4 text-blue-500 animate-pulse" />
+                  ) : serviceNowFetched ? (
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                  ) : (
+                    <Search className="h-4 w-4 text-gray-400" />
+                  )}
+                </div>
+              )}
+            </div>
+            {!project && formData.ritm_code && !validateRITMFormat(formData.ritm_code) && (
+              <p className="mt-1 text-xs text-red-600 flex items-center">
+                <AlertTriangle className="h-3 w-3 mr-1" />
+                Formato inválido. Debe comenzar con "RITM" seguido de números.
+              </p>
+            )}
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Nombre del Proyecto *
+              {isFetchingServiceNow && (
+                <span className="ml-2 text-xs text-blue-600">(Se completará automáticamente)</span>
+              )}
             </label>
             <input
               type="text"
@@ -148,6 +192,9 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, isOpen, onClose, o
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Cliente *
+                {isFetchingServiceNow && (
+                  <span className="ml-2 text-xs text-blue-600">(Se completará automáticamente)</span>
+                )}
               </label>
               <input
                 type="text"
@@ -161,6 +208,9 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, isOpen, onClose, o
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Datacenter *
+                {isFetchingServiceNow && (
+                  <span className="ml-2 text-xs text-blue-600">(Se completará automáticamente)</span>
+                )}
               </label>
               <input
                 type="text"
@@ -205,8 +255,14 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, isOpen, onClose, o
               currentFile={formData.excel_file_path}
               accept=".xlsx,.xls,.csv"
               maxSize={10}
-              label="Archivo Excel del Proyecto"
+              label={`Archivo Excel del Proyecto${isFetchingServiceNow ? ' (Se completará automáticamente si existe)' : ''}`}
             />
+            {serviceNowFetched && !project && formData.excel_file_path && (
+              <p className="mt-2 text-xs text-green-600 flex items-center">
+                <CheckCircle className="h-3 w-3 mr-1" />
+                Archivo Excel encontrado en ServiceNow
+              </p>
+            )}
           </div>
 
           <div>
@@ -236,10 +292,10 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, isOpen, onClose, o
             </button>
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || isFetchingServiceNow}
               className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 transition-colors"
             >
-              {isLoading && <LoadingSpinner size="small" className="mr-2" />}
+              {(isLoading || isFetchingServiceNow) && <LoadingSpinner size="small" className="mr-2" />}
               {project ? 'Update' : 'Create'} Project
             </button>
           </div>

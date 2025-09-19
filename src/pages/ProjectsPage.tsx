@@ -1,51 +1,46 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, Server, Calendar, Users, FileText } from 'lucide-react';
-import { projectsAPI } from '../services/api';
 import { useNotification } from '../contexts/NotificationContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useVerificationData } from '../hooks/useVerificationData';
 import Breadcrumb from '../components/Breadcrumb';
 import ProjectModal from '../components/ProjectModal';
+import VerificationProgressBar from '../components/VerificationProgressBar';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 const ProjectsPage = () => {
   const { user } = useAuth();
   const { addNotification } = useNotification();
-  const [projects, setProjects] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const {
+    projects,
+    isLoading,
+    error,
+    refetch,
+    calculateProjectProgress
+  } = useVerificationData();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
-
-  const fetchProjects = async () => {
-    try {
-      setIsLoading(true);
-      const data = await projectsAPI.getAll();
-      setProjects(data);
-    } catch (error) {
-      console.error('Error fetching projects:', error);
-      addNotification({
-        type: 'error',
-        title: 'Error',
-        message: 'Failed to fetch projects'
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   useEffect(() => {
     let isMounted = true;
     
-    const loadProjects = async () => {
+    const handleError = () => {
       if (isMounted) {
-        await fetchProjects();
+        addNotification({
+          type: 'error',
+          title: 'Error',
+          message: 'Failed to fetch projects'
+        });
       }
     };
     
-    loadProjects();
+    if (error && isMounted) {
+      handleError();
+    }
     
     return () => { isMounted = false; };
-  }, []);
+  }, [error, addNotification]);
 
   const handleCreateProject = () => {
     setEditingProject(null);
@@ -58,7 +53,7 @@ const ProjectsPage = () => {
   };
 
   const handleProjectSaved = () => {
-    fetchProjects();
+    refetch();
     setIsModalOpen(false);
     setEditingProject(null);
   };
@@ -121,6 +116,15 @@ const ProjectsPage = () => {
                     </span>
                   </div>
                 </div>
+              </div>
+              
+              {/* Barra de progreso de verificación */}
+              <div className="mb-4">
+                <VerificationProgressBar
+                  label="Progreso de Verificación"
+                  {...calculateProjectProgress(project.id)}
+                  size="small"
+                />
               </div>
               
               <div className="text-gray-600 text-sm mb-4 space-y-1">

@@ -1,87 +1,69 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Plus, Search, Calendar, Package, Server, Building, Edit3, Filter } from 'lucide-react';
-import { equipmentAPI, deliveryNotesAPI, ordersAPI, projectsAPI } from '../services/api';
 import { useNotification } from '../contexts/NotificationContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useVerificationData } from '../hooks/useVerificationData';
 import Breadcrumb from '../components/Breadcrumb';
 import LoadingSpinner from '../components/LoadingSpinner';
+import VerificationProgressBar from '../components/VerificationProgressBar';
 import EquipmentModal from '../components/EquipmentModal';
 
 const EquipmentPage = () => {
   const { deliveryNoteId } = useParams();
   const { user } = useAuth();
   const { addNotification } = useNotification();
-  const [equipment, setEquipment] = useState([]);
-  const [deliveryNotes, setDeliveryNotes] = useState([]);
-  const [orders, setOrders] = useState([]);
-  const [projects, setProjects] = useState([]);
+  const {
+    equipment,
+    deliveryNotes,
+    orders,
+    projects,
+    isLoading,
+    error,
+    refetch,
+    calculateDeliveryNoteProgress,
+    getEquipmentByDeliveryNote
+  } = useVerificationData();
   const [currentDeliveryNote, setCurrentDeliveryNote] = useState(null);
   const [currentOrder, setCurrentOrder] = useState(null);
   const [currentProject, setCurrentProject] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEquipment, setEditingEquipment] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
 
-  const fetchData = async () => {
-    try {
-      setIsLoading(true);
+  // Filtrar equipos según deliveryNoteId si se especifica
+  const relevantEquipment = deliveryNoteId 
+    ? getEquipmentByDeliveryNote(parseInt(deliveryNoteId))
+    : equipment;
+
+  useEffect(() => {
+    if (!isLoading && deliveryNoteId) {
+      const deliveryNote = deliveryNotes.find(dn => dn.id === parseInt(deliveryNoteId));
+      setCurrentDeliveryNote(deliveryNote || null);
       
-      let equipmentData, deliveryNotesData, ordersData, projectsData;
-      
-      // Si hay deliveryNoteId específico, cargar solo el equipo de ese albarán
-      if (deliveryNoteId) {
-        [equipmentData, deliveryNotesData, ordersData, projectsData] = await Promise.all([
-          equipmentAPI.getByDeliveryNote(deliveryNoteId),
-          deliveryNotesAPI.getAll(),
-          ordersAPI.getAll(),
-          projectsAPI.getAll()
-        ]);
+      if (deliveryNote) {
+        const order = orders.find(o => o.id === deliveryNote.order_id);
+        setCurrentOrder(order || null);
         
-        // Encontrar el albarán, pedido y proyecto actuales
-        const deliveryNote = deliveryNotesData.find(dn => dn.id === parseInt(deliveryNoteId));
-        setCurrentDeliveryNote(deliveryNote || null);
-        
-        if (deliveryNote) {
-          const order = ordersData.find(o => o.id === deliveryNote.order_id);
-          setCurrentOrder(order || null);
-          
-          if (order) {
-            const project = projectsData.find(p => p.id === order.project_id);
-            setCurrentProject(project || null);
-          }
+        if (order) {
+          const project = projects.find(p => p.id === order.project_id);
+          setCurrentProject(project || null);
         }
-      } else {
-        [equipmentData, deliveryNotesData, ordersData, projectsData] = await Promise.all([
-          equipmentAPI.getAll(),
-          deliveryNotesAPI.getAll(),
-          ordersAPI.getAll(),
-          projectsAPI.getAll()
-        ]);
       }
-      
-      setEquipment(equipmentData);
-      setDeliveryNotes(deliveryNotesData);
-      setOrders(ordersData);
-      setProjects(projectsData);
-    } catch (error) {
-      console.error('Error fetching equipment:', error);
+    }
+  }, [deliveryNoteId, deliveryNotes, orders, projects, isLoading]);
+
+  useEffect(() => {
+    if (error) {
       addNotification({
         type: 'error',
         title: 'Error',
         message: 'Failed to fetch equipment data'
       });
-    } finally {
-      setIsLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, [deliveryNoteId]);
+  }, [error, addNotification]);
 
   const handleCreateEquipment = (deliveryNoteId: string) => {
     setEditingEquipment(null);
@@ -94,7 +76,7 @@ const EquipmentPage = () => {
   };
 
   const handleEquipmentSaved = () => {
-    fetchData();
+    refetch();
     setIsModalOpen(false);
     setEditingEquipment(null);
   };
@@ -119,7 +101,7 @@ const EquipmentPage = () => {
     }
   };
 
-  const filteredEquipment = equipment.filter(item => {
+  const filteredEquipment = relevantEquipment.filter(item => {
     const matchesSearch = 
       item.serial_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.asset_tag?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -179,7 +161,7 @@ const EquipmentPage = () => {
           )}
         </div>
         <div className="text-sm text-gray-600">
-          Total equipos: {equipment.length}
+          Total equipos: {relevantEquipment.length}
         </div>
         {(user?.role === 'admin' || user?.role === 'manager' || user?.role === 'operator') && deliveryNoteId && (
           <button
@@ -191,6 +173,20 @@ const EquipmentPage = () => {
           </button>
         )}
       </div>
+
+      {/* Barra de progreso si estamos viendo equipos de un albarán específico */}
+      {deliveryNoteId && currentDeliveryNote && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">
+            Estado de Verificación - {currentDeliveryNote.delivery_code}
+          </h3>
+          <VerificationProgressBar
+            label="Equipos Verificados"
+            {...calculateDeliveryNoteProgress(parseInt(deliveryNoteId))}
+            size="large"
+          />
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4">

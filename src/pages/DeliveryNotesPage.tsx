@@ -2,70 +2,50 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Link } from 'react-router-dom';
 import { Plus, Search, Calendar, Package, FileText, Edit3, Trash2, Building } from 'lucide-react';
-import { deliveryNotesAPI, ordersAPI, projectsAPI } from '../services/api';
 import { useNotification } from '../contexts/NotificationContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useVerificationData } from '../hooks/useVerificationData';
 import Breadcrumb from '../components/Breadcrumb';
 import LoadingSpinner from '../components/LoadingSpinner';
+import VerificationProgressBar from '../components/VerificationProgressBar';
 import DeliveryNoteModal from '../components/DeliveryNoteModal';
 
 const DeliveryNotesPage = () => {
   const { orderId } = useParams();
   const { user } = useAuth();
   const { addNotification } = useNotification();
-  const [deliveryNotes, setDeliveryNotes] = useState([]);
-  const [orders, setOrders] = useState([]);
-  const [projects, setProjects] = useState([]);
+  const {
+    deliveryNotes,
+    orders,
+    projects,
+    isLoading,
+    error,
+    refetch,
+    calculateDeliveryNoteProgress,
+    getDeliveryNotesByOrder
+  } = useVerificationData();
   const [currentOrder, setCurrentOrder] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDeliveryNote, setEditingDeliveryNote] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedOrder, setSelectedOrder] = useState('');
 
-  const fetchData = async () => {
-    try {
-      setIsLoading(true);
-      
-      // Si hay orderId específico, cargar solo los delivery notes de esa orden
-      let deliveryNotesData, ordersData, projectsData;
-      
-      if (orderId) {
-        [deliveryNotesData, ordersData, projectsData] = await Promise.all([
-          deliveryNotesAPI.getByOrder(orderId),
-          ordersAPI.getAll(),
-          projectsAPI.getAll()
-        ]);
-        
-        // Encontrar la orden actual
-        const order = ordersData.find(o => o.id === parseInt(orderId));
-        setCurrentOrder(order || null);
-      } else {
-        [deliveryNotesData, ordersData, projectsData] = await Promise.all([
-          deliveryNotesAPI.getAll(),
-          ordersAPI.getAll(),
-          projectsAPI.getAll()
-        ]);
-      }
-      
-      setDeliveryNotes(deliveryNotesData);
-      setOrders(ordersData);
-      setProjects(projectsData);
-    } catch (error) {
-      console.error('Error fetching data:', error);
+  useEffect(() => {
+    if (!isLoading && orderId) {
+      const order = orders.find(o => o.id === parseInt(orderId));
+      setCurrentOrder(order || null);
+    }
+  }, [orderId, orders, isLoading]);
+
+  useEffect(() => {
+    if (error) {
       addNotification({
         type: 'error',
         title: 'Error',
         message: 'Error al cargar los albaranes de entrega'
       });
-    } finally {
-      setIsLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, [orderId]);
+  }, [error, addNotification]);
 
   const handleCreateDeliveryNote = (orderId: string) => {
     setEditingDeliveryNote(null);
@@ -80,7 +60,7 @@ const DeliveryNotesPage = () => {
   };
 
   const handleDeliveryNoteSaved = () => {
-    fetchData();
+    refetch();
     setIsModalOpen(false);
     setEditingDeliveryNote(null);
     setSelectedOrder('');
@@ -95,7 +75,12 @@ const DeliveryNotesPage = () => {
     }
   };
 
-  const filteredDeliveryNotes = deliveryNotes.filter(note => {
+  // Filtrar albaranes por orden si se especifica un orderId
+  const relevantDeliveryNotes = orderId 
+    ? getDeliveryNotesByOrder(parseInt(orderId))
+    : deliveryNotes;
+
+  const filteredDeliveryNotes = relevantDeliveryNotes.filter(note => {
     const matchesSearch = 
       note.delivery_code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       note.carrier?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -149,7 +134,9 @@ const DeliveryNotesPage = () => {
       {/* Orders and Delivery Notes */}
       <div className="space-y-6">
         {(currentOrder ? [currentOrder] : orders).map((order: any) => {
-          const orderDeliveryNotes = filteredDeliveryNotes.filter(note => note.order_id === order.id);
+          const orderDeliveryNotes = orderId 
+            ? filteredDeliveryNotes 
+            : filteredDeliveryNotes.filter(note => note.order_id === order.id);
           const project = projects.find(p => p.id === order.project_id);
           
           // Si estamos en vista global, solo mostrar órdenes que tienen albaranes
@@ -196,6 +183,16 @@ const DeliveryNotesPage = () => {
                           <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(note.status)}`}>
                             {note.status}
                           </span>
+                        </div>
+                        
+                        {/* Barra de progreso de verificación */}
+                        <div className="mb-3">
+                          <VerificationProgressBar
+                            label="Verificación"
+                            {...calculateDeliveryNoteProgress(note.id)}
+                            size="small"
+                            showDetails={false}
+                          />
                         </div>
                         
                         <div className="text-sm text-gray-600 space-y-1">

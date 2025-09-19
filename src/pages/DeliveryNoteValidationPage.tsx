@@ -13,46 +13,42 @@ import {
   ClipboardCheck,
   ClipboardX
 } from 'lucide-react';
-import { deliveryNotesAPI, equipmentAPI } from '../services/api';
 import { useNotification } from '../contexts/NotificationContext';
+import { useVerificationData } from '../hooks/useVerificationData';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Breadcrumb from '../components/Breadcrumb';
+import VerificationProgressBar from '../components/VerificationProgressBar';
 import CameraCaptureButton from '../components/CameraCaptureButton';
 
 const DeliveryNoteValidationPage = () => {
   const { deliveryNoteId } = useParams();
   const { addNotification } = useNotification();
-  const [deliveryNote, setDeliveryNote] = useState<any>(null);
-  const [equipment, setEquipment] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const {
+    deliveryNotes,
+    equipment,
+    isLoading,
+    error,
+    refetch,
+    calculateDeliveryNoteProgress,
+    getEquipmentByDeliveryNote
+  } = useVerificationData();
   const [serialNumberInput, setSerialNumberInput] = useState('');
   const [verificationPhoto, setVerificationPhoto] = useState<File | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const fetchDeliveryNoteAndEquipment = async () => {
-    setIsLoading(true);
-    try {
-      const [dnData, equipmentData] = await Promise.all([
-        deliveryNotesAPI.getById(deliveryNoteId!),
-        equipmentAPI.getByDeliveryNote(deliveryNoteId!),
-      ]);
-      setDeliveryNote(dnData);
-      setEquipment(equipmentData);
-    } catch (error) {
-      console.error('Error fetching data:', error);
+  // Obtener el albarán actual y sus equipos
+  const deliveryNote = deliveryNotes.find(dn => dn.id === parseInt(deliveryNoteId!));
+  const deliveryNoteEquipment = getEquipmentByDeliveryNote(parseInt(deliveryNoteId!));
+
+  useEffect(() => {
+    if (error) {
       addNotification({
         type: 'error',
         title: 'Error',
-        message: 'Failed to load delivery note or equipment data.'
+        message: 'Error al cargar los datos del albarán o equipos.'
       });
-    } finally {
-      setIsLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchDeliveryNoteAndEquipment();
-  }, [deliveryNoteId]);
+  }, [error, addNotification]);
 
   useEffect(() => {
     if (!isLoading && inputRef.current) {
@@ -125,7 +121,7 @@ const DeliveryNoteValidationPage = () => {
         message: `El equipo con S/N "${snToVerify}" ha sido verificado correctamente.`
       });
       // Refresh data to show updated status
-      fetchDeliveryNoteAndEquipment();
+      refetch();
       setVerificationPhoto(null); // Clear photo after successful verification
     } catch (error) {
       addNotification({
@@ -144,7 +140,7 @@ const DeliveryNoteValidationPage = () => {
         title: 'Verificación Deshecha',
         message: 'La verificación del equipo ha sido deshecha.'
       });
-      fetchDeliveryNoteAndEquipment();
+      refetch();
     } catch (error) {
       addNotification({
         type: 'error',
@@ -163,9 +159,10 @@ const DeliveryNoteValidationPage = () => {
     });
   };
 
-  const verifiedCount = equipment.filter((item) => item.is_verified).length;
-  const totalEquipment = equipment.length;
+  const verifiedCount = deliveryNoteEquipment.filter((item) => item.is_verified).length;
+  const totalEquipment = deliveryNoteEquipment.length;
   const allVerified = totalEquipment > 0 && verifiedCount === totalEquipment;
+  const progressData = calculateDeliveryNoteProgress(parseInt(deliveryNoteId!));
 
   if (isLoading) {
     return (
@@ -223,8 +220,16 @@ const DeliveryNoteValidationPage = () => {
               {verifiedCount} / {totalEquipment}
             </p>
           </div>
+          {/* Barra de progreso principal */}
+          <div className="min-w-64">
+            <VerificationProgressBar
+              label="Progreso Total"
+              {...progressData}
+              size="medium"
+            />
+          </div>
           <button
-            onClick={fetchDeliveryNoteAndEquipment}
+            onClick={refetch}
             className="p-2 rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
             title="Refresh List"
           >
@@ -289,14 +294,14 @@ const DeliveryNoteValidationPage = () => {
           <h2 className="text-lg font-medium text-gray-900">Lista de Equipos en Albarán</h2>
         </div>
         <ul className="divide-y divide-gray-200">
-          {equipment.length === 0 ? (
+          {deliveryNoteEquipment.length === 0 ? (
             <li className="p-6 text-center text-gray-500">
               <Package className="mx-auto h-12 w-12 text-gray-400 mb-3" />
               No hay equipos registrados para este albarán.
               <p className="mt-2 text-sm">Por favor, añade equipos desde la página de "Ver Equipos" de este albarán.</p>
             </li>
           ) : (
-            equipment.map((item) => (
+            deliveryNoteEquipment.map((item) => (
               <li key={item.id} className="p-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900">

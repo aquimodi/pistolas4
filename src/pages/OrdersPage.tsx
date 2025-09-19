@@ -1,55 +1,50 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Plus, Search, Calendar, Package, FileText, Edit3, Trash2, Building, ArrowLeft } from 'lucide-react';
-import { ordersAPI, projectsAPI } from '../services/api';
 import { useNotification } from '../contexts/NotificationContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useVerificationData } from '../hooks/useVerificationData';
 import Breadcrumb from '../components/Breadcrumb';
 import OrderModal from '../components/OrderModal';
+import VerificationProgressBar from '../components/VerificationProgressBar';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 const OrdersPage = () => {
   const { projectId } = useParams();
   const { user } = useAuth();
   const { addNotification } = useNotification();
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
+  const {
+    orders,
+    projects,
+    isLoading,
+    error,
+    refetch,
+    calculateOrderProgress,
+    getOrdersByProject
+  } = useVerificationData();
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const fetchData = async () => {
-    try {
-      setIsLoading(true);
-      const [projectsResponse, ordersResponse] = await Promise.all([
-        projectsAPI.getAll(),
-        projectId ? ordersAPI.getByProject(projectId) : ordersAPI.getAll(),
-      ]);
-      
-      setProjects(projectsResponse);
-      setOrders(ordersResponse);
-      
+  useEffect(() => {
+    if (!isLoading) {
       if (projectId) {
-        const project = projectsResponse.find(p => p.id === parseInt(projectId));
+        const project = projects.find(p => p.id === parseInt(projectId));
         setCurrentProject(project || null);
       }
-    } catch (error: any) {
-      console.error('Error fetching data:', error);
+    }
+  }, [projectId, projects, isLoading]);
+
+  useEffect(() => {
+    if (error) {
       addNotification({
         type: 'error',
         title: 'Error',
         message: 'Error al cargar los datos'
       });
-    } finally {
-      setIsLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, [projectId]);
+  }, [error, addNotification]);
 
   const handleCreateOrder = () => {
     setEditingOrder(null);
@@ -62,7 +57,7 @@ const OrdersPage = () => {
   };
 
   const handleOrderSaved = () => {
-    fetchData();
+    refetch();
     setIsModalOpen(false);
     setEditingOrder(null);
   };
@@ -77,7 +72,12 @@ const OrdersPage = () => {
     }
   };
 
-  const filteredOrders = orders.filter(order => {
+  // Filtrar órdenes por proyecto si se especifica un projectId
+  const relevantOrders = projectId 
+    ? getOrdersByProject(parseInt(projectId))
+    : orders;
+
+  const filteredOrders = relevantOrders.filter(order => {
     const matchesSearch = 
       order.order_code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.vendor?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -183,6 +183,15 @@ const OrdersPage = () => {
                       <Edit3 className="w-4 h-4" />
                     </button>
                   )}
+                </div>
+                
+                {/* Barra de progreso de verificación */}
+                <div className="mb-4">
+                  <VerificationProgressBar
+                    label="Progreso de Verificación"
+                    {...calculateOrderProgress(order.id)}
+                    size="small"
+                  />
                 </div>
                 
                 <div className="space-y-2 mb-4">

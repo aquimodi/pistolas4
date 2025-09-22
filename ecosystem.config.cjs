@@ -26,9 +26,11 @@ module.exports = {
         DB_DATABASE: 'datacenter_equipment',
         DB_USER: 'sa',
         RATE_LIMIT_MAX_REQUESTS: 100,
-        // ServiceNow API integration
-        ALMA_API_URL: process.env.ALMA_API_URL || '',
-        ALMA_AUTH_TOKEN: process.env.ALMA_AUTH_TOKEN || ''
+        // ServiceNow API integration (Two-step authentication)
+        ALMA_AUTH_URL: process.env.ALMA_AUTH_URL || '',
+        ALMA_AUTH_USER: process.env.ALMA_AUTH_USER || '',
+        ALMA_AUTH_PASS: process.env.ALMA_AUTH_PASS || '',
+        ALMA_SN_URL: process.env.ALMA_SN_URL || ''
       },
       
       // Development environment
@@ -37,9 +39,11 @@ module.exports = {
         PORT: 3001,
         SERVER_IP: 'localhost',
         ALLOWED_ORIGINS: 'http://localhost:5173,http://localhost:3000',
-        // ServiceNow API integration (development)
-        ALMA_API_URL: process.env.ALMA_API_URL || '',
-        ALMA_AUTH_TOKEN: process.env.ALMA_AUTH_TOKEN || ''
+        // ServiceNow API integration (Two-step authentication - development)
+        ALMA_AUTH_URL: process.env.ALMA_AUTH_URL || '',
+        ALMA_AUTH_USER: process.env.ALMA_AUTH_USER || '',
+        ALMA_AUTH_PASS: process.env.ALMA_AUTH_PASS || '',
+        ALMA_SN_URL: process.env.ALMA_SN_URL || ''
       },
       
       // Monitoring and logging

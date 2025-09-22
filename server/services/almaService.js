@@ -1,8 +1,9 @@
 import fetch from 'node-fetch';
 
 /**
- * Service for integrating with ServiceNow via ALMA API
- * Handles fetching project data from ServiceNow based on RITM code
+ * Service for integrating with ServiceNow via ALMA API with two-step authentication
+ * Step 1: Authenticate to get token
+ * Step 2: Use token to fetch project data from ServiceNow based on RITM code
  */
 
 /**
@@ -11,11 +12,13 @@ import fetch from 'node-fetch';
  * @returns {Promise<Object>} - Project data from ServiceNow
  */
 export async function fetchServiceNowData(ritmCode) {
-  const almaApiUrl = process.env.ALMA_API_URL;
-  const almaAuthToken = process.env.ALMA_AUTH_TOKEN;
+  const almaAuthUrl = process.env.ALMA_AUTH_URL;
+  const almaAuthUser = process.env.ALMA_AUTH_USER;
+  const almaAuthPass = process.env.ALMA_AUTH_PASS;
+  const almaSnUrl = process.env.ALMA_SN_URL;
 
-  if (!almaApiUrl || !almaAuthToken) {
-    throw new Error('ServiceNow API configuration is missing. Please check ALMA_API_URL and ALMA_AUTH_TOKEN environment variables.');
+  if (!almaAuthUrl || !almaAuthUser || !almaAuthPass || !almaSnUrl) {
+    throw new Error('ServiceNow API configuration is missing. Please check ALMA_AUTH_URL, ALMA_AUTH_USER, ALMA_AUTH_PASS, and ALMA_SN_URL environment variables.');
   }
 
   if (!ritmCode || !ritmCode.startsWith('RITM')) {
@@ -25,35 +28,74 @@ export async function fetchServiceNowData(ritmCode) {
   console.log(`🔍 Fetching ServiceNow data for RITM: ${ritmCode}`);
 
   try {
-    const requestBody = {
-      snUrl: `/api/now/table/sc_req_item_list?sysparm_query=number=${ritmCode}`,
+    // Step 1: Authenticate to get token
+    console.log('🔐 Step 1: Authenticating with ALMA API...');
+    
+    const authResponse = await fetch(almaAuthUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        user: almaAuthUser,
+        password: almaAuthPass
+      })
+    });
+
+    if (!authResponse.ok) {
+      if (authResponse.status === 401) {
+        throw new Error('Authentication failed. Please check your ALMA credentials (ALMA_AUTH_USER and ALMA_AUTH_PASS).');
+      }
+      if (authResponse.status === 403) {
+        throw new Error('Access denied. Insufficient permissions for ALMA authentication.');
+      }
+      throw new Error(`Authentication API request failed with status: ${authResponse.status}`);
+    }
+
+    const authData = await authResponse.json();
+    console.log('🔐 Authentication response received');
+
+    // Extract token from the 'data' property
+    const token = authData.data;
+    if (!token) {
+      throw new Error('No authentication token received from ALMA API');
+    }
+
+    console.log('✅ Authentication successful, token obtained');
+
+    // Step 2: Use token to fetch ServiceNow data
+    console.log('📞 Step 2: Fetching ServiceNow data...');
+    
+    const snRequestBody = {
+      snUrl: `/api/now/table/sc_req_item?sysparm_query=number=${ritmCode}&sysparm_limit=1`,
       snRequestMethod: 'GET'
     };
 
-    const response = await fetch(almaApiUrl, {
+    const snResponse = await fetch(almaSnUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'ALMA-Auth-Token': `Bearer ${almaAuthToken}`
+        'ALMA-Auth-Token': `Bearer ${token}`
       },
-      body: JSON.stringify(requestBody)
+      body: JSON.stringify(snRequestBody)
     });
 
-    if (!response.ok) {
-      if (response.status === 401) {
-        throw new Error('Authentication failed. Please check your ALMA-Auth-Token.');
+    if (!snResponse.ok) {
+      if (snResponse.status === 401) {
+        throw new Error('Authentication failed. Token may have expired or be invalid.');
       }
-      if (response.status === 403) {
+      if (snResponse.status === 403) {
         throw new Error('Access denied. Insufficient permissions to access ServiceNow table.');
       }
-      throw new Error(`API request failed with status: ${response.status}`);
+      throw new Error(`ServiceNow API request failed with status: ${snResponse.status}`);
     }
 
-    const data = await response.json();
+    const snData = await snResponse.json();
     console.log('📥 ServiceNow API response received');
 
-    // Parse the response and extract project data
-    const projectData = parseServiceNowResponse(data, ritmCode);
+    // Extract data from the 'data' property and parse project data
+    const serviceNowData = snData.data;
+    const projectData = parseServiceNowResponse(serviceNowData, ritmCode);
     
     console.log('✅ ServiceNow data processed successfully');
     return projectData;
@@ -72,7 +114,7 @@ export async function fetchServiceNowData(ritmCode) {
  */
 function parseServiceNowResponse(data, ritmCode) {
   try {
-    // ServiceNow typically returns data in a 'result' array
+    // ServiceNow typically returns data in a 'result' array inside the data property
     const results = data.result || [];
     
     if (!results || results.length === 0) {

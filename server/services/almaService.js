@@ -93,6 +93,32 @@ export async function fetchServiceNowData(ritmCode) {
     const snData = await snResponse.json();
     console.log('📥 ServiceNow API response received');
 
+    // PASO 1: Logging detallado para análisis de estructura
+    console.log('🔍 FULL ServiceNow Response Structure:', JSON.stringify(snData, null, 2));
+    console.log('🎯 ServiceNow Response Data Property:', JSON.stringify(snData.data, null, 2));
+    
+    // Análisis de estructura para debugging
+    if (snData.data) {
+      if (snData.data.result) {
+        console.log('✅ Found data.result - Array length:', Array.isArray(snData.data.result) ? snData.data.result.length : 'Not an array');
+        if (Array.isArray(snData.data.result) && snData.data.result.length > 0) {
+          console.log('📋 First result structure:', JSON.stringify(snData.data.result[0], null, 2));
+        }
+      } else {
+        console.log('⚠️ No data.result found');
+        if (Array.isArray(snData.data)) {
+          console.log('📊 data is array with length:', snData.data.length);
+          if (snData.data.length > 0) {
+            console.log('📋 First data element structure:', JSON.stringify(snData.data[0], null, 2));
+          }
+        } else {
+          console.log('📊 data keys:', Object.keys(snData.data));
+        }
+      }
+    } else {
+      console.log('❌ No data property found in response');
+    }
+
     // Extract data from the 'data' property and parse project data
     const serviceNowData = snData.data;
     const projectData = parseServiceNowResponse(serviceNowData, ritmCode);
@@ -114,30 +140,69 @@ export async function fetchServiceNowData(ritmCode) {
  */
 function parseServiceNowResponse(data, ritmCode) {
   try {
-    // ServiceNow typically returns data in a 'result' array inside the data property
-    const results = data.result || [];
+    console.log('🔄 Starting parseServiceNowResponse with ritmCode:', ritmCode);
+    console.log('🔄 Data received for parsing:', JSON.stringify(data, null, 2));
+
+    let results = [];
     
+    // PASO 2: Análisis adaptativo de la estructura de datos
+    if (data && data.result && Array.isArray(data.result)) {
+      // Estructura estándar: { result: [...] }
+      results = data.result;
+      console.log('📊 Using data.result - found', results.length, 'results');
+    } else if (Array.isArray(data)) {
+      // Estructura alternativa: datos directamente como array
+      results = data;
+      console.log('📊 Using data directly as array - found', results.length, 'results');
+    } else if (data && typeof data === 'object') {
+      // Buscar otras propiedades que puedan contener los resultados
+      const possibleArrayKeys = Object.keys(data).filter(key => Array.isArray(data[key]));
+      if (possibleArrayKeys.length > 0) {
+        results = data[possibleArrayKeys[0]];
+        console.log('📊 Using data.' + possibleArrayKeys[0] + ' - found', results.length, 'results');
+      } else {
+        console.log('⚠️ No array found in data object. Available keys:', Object.keys(data));
+        results = [];
+      }
+    } else {
+      console.log('❌ Data is not in expected format:', typeof data);
+      results = [];
+    }
+
     if (!results || results.length === 0) {
+      console.log('❌ No results found for RITM:', ritmCode);
       throw new Error(`No data found for RITM code: ${ritmCode}`);
     }
 
     const record = results[0]; // Take the first matching record
+    console.log('📋 Processing record:', JSON.stringify(record, null, 2));
 
-    // Map ServiceNow fields to project fields
+    // PASO 3: Mapeo adaptativo de campos ServiceNow a campos de proyecto
     const projectData = {
       ritm_code: ritmCode,
-      project_name: record.short_description || '',
-      client: record.owner_delivery || '',
-      datacenter: record.Datacenter || record.datacenter || '', // Try both field names
+      project_name: record.short_description || record.description || record.title || '',
+      client: record.owner_delivery || record.requested_for || record.client || '',
+      datacenter: record.Datacenter || record.datacenter || record.location || record.site || '',
       excel_file_path: extractLatestExcelFile(record)
     };
 
-    console.log('📋 Mapped project data:', {
-      ritm_code: projectData.ritm_code,
-      project_name: projectData.project_name ? '✓' : '✗',
-      client: projectData.client ? '✓' : '✗',
-      datacenter: projectData.datacenter ? '✓' : '✗',
-      excel_file_path: projectData.excel_file_path ? '✓' : '✗'
+    console.log('📋 Mapped project data:');
+    console.log('  - RITM Code:', projectData.ritm_code);
+    console.log('  - Project Name:', projectData.project_name || '(empty)');
+    console.log('  - Client:', projectData.client || '(empty)');
+    console.log('  - Datacenter:', projectData.datacenter || '(empty)');
+    console.log('  - Excel File Path:', projectData.excel_file_path || '(empty)');
+    
+    // Mostrar todos los campos disponibles para análisis futuro
+    console.log('📋 Available fields in record:', Object.keys(record));
+    console.log('📋 Record field analysis:');
+    Object.keys(record).forEach(key => {
+      const value = record[key];
+      if (typeof value === 'string' && value.length > 0) {
+        console.log(`  - ${key}: "${value.substring(0, 100)}${value.length > 100 ? '...' : ''}"`);
+      } else if (value !== null && value !== undefined && value !== '') {
+        console.log(`  - ${key}: ${typeof value} - ${JSON.stringify(value).substring(0, 100)}`);
+      }
     });
 
     return projectData;
@@ -155,34 +220,69 @@ function parseServiceNowResponse(data, ritmCode) {
  */
 function extractLatestExcelFile(record) {
   try {
-    // ServiceNow attachments are typically in sys_attachment table
-    // This is a simplified approach - you may need to adjust based on actual ServiceNow structure
+    console.log('📎 Starting extractLatestExcelFile');
+    console.log('📎 Record keys for attachment search:', Object.keys(record));
     
+    // PASO 4: Búsqueda adaptativa de archivos Excel
+    // Buscar en múltiples posibles ubicaciones de adjuntos
+    let excelFiles = [];
+    
+    // Opción 1: Array de adjuntos directo
     if (record.attachments && Array.isArray(record.attachments)) {
-      const excelFiles = record.attachments.filter(attachment => 
+      console.log('📎 Found attachments array with', record.attachments.length, 'items');
+      excelFiles = record.attachments.filter(attachment => 
         attachment.file_name && attachment.file_name.toLowerCase().endsWith('.xlsx')
       );
-      
-      if (excelFiles.length > 0) {
-        // Sort by created date and get the latest
-        excelFiles.sort((a, b) => new Date(b.sys_created_on) - new Date(a.sys_created_on));
-        const latestFile = excelFiles[0];
-        
-        console.log(`📎 Found Excel file: ${latestFile.file_name}`);
-        return latestFile.download_link || latestFile.file_path || '';
+    }
+    
+    // Opción 2: Buscar en propiedades que contengan 'attach', 'file' o 'document'
+    if (excelFiles.length === 0) {
+      Object.keys(record).forEach(key => {
+        const lowerKey = key.toLowerCase();
+        if ((lowerKey.includes('attach') || lowerKey.includes('file') || lowerKey.includes('document')) && 
+            Array.isArray(record[key])) {
+          console.log(`📎 Checking ${key} for Excel files`);
+          const filesInProperty = record[key].filter(item => 
+            item && item.file_name && item.file_name.toLowerCase().endsWith('.xlsx')
+          );
+          excelFiles = excelFiles.concat(filesInProperty);
+        }
+      });
+    }
+    
+    // Opción 3: Campos directos con nombres de archivo
+    const directFileFields = ['excel_attachment', 'excel_file', 'attachment', 'document_path'];
+    for (const field of directFileFields) {
+      if (record[field] && typeof record[field] === 'string' && 
+          record[field].toLowerCase().includes('.xlsx')) {
+        console.log(`📎 Found Excel file in direct field ${field}: ${record[field]}`);
+        return record[field];
       }
     }
-
-    // If no attachments found, check for direct file fields
-    if (record.excel_attachment || record.excel_file) {
-      return record.excel_attachment || record.excel_file;
+    
+    // Procesar archivos Excel encontrados
+    if (excelFiles.length > 0) {
+      console.log(`📎 Found ${excelFiles.length} Excel files`);
+      
+      // Sort by created date and get the latest
+      excelFiles.sort((a, b) => {
+        const dateA = new Date(a.sys_created_on || a.created_on || a.date || 0);
+        const dateB = new Date(b.sys_created_on || b.created_on || b.date || 0);
+        return dateB - dateA;
+      });
+      
+      const latestFile = excelFiles[0];
+      console.log(`📎 Selected latest Excel file: ${latestFile.file_name}`);
+      
+      return latestFile.download_link || latestFile.file_path || latestFile.url || '';
     }
 
-    console.log('📎 No Excel files found in ServiceNow record');
+    console.log('📎 No Excel files found in any location');
     return '';
 
   } catch (error) {
     console.warn('⚠️ Error extracting Excel file:', error.message);
+    console.warn('⚠️ Record structure for debugging:', JSON.stringify(record, null, 2));
     return '';
   }
 }

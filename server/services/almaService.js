@@ -71,6 +71,17 @@ export async function fetchServiceNowData(ritmCode) {
       snRequestMethod: 'GET'
     };
 
+    // DEBUGGING: Log the complete request details
+    console.log('🔍 ALMA ServiceNow Request Debug:');
+    console.log('  - ALMA SN URL (almaSnUrl):', almaSnUrl);
+    console.log('  - ServiceNow Request Body:', JSON.stringify(snRequestBody, null, 2));
+    console.log('  - ServiceNow Internal URL:', snRequestBody.snUrl);
+    console.log('  - Authentication Token Length:', token ? token.length : 'No token');
+    console.log('  - Request Headers:', {
+      'Content-Type': 'application/json',
+      'ALMA-Auth-Token': `Bearer ${token ? token.substring(0, 20) + '...' : 'No token'}`
+    });
+
     const snResponse = await fetch(almaSnUrl, {
       method: 'POST',
       headers: {
@@ -80,14 +91,32 @@ export async function fetchServiceNowData(ritmCode) {
       body: JSON.stringify(snRequestBody)
     });
 
+    // DEBUGGING: Log response details before checking if it's ok
+    console.log('📥 ServiceNow Response Debug:');
+    console.log('  - Status Code:', snResponse.status);
+    console.log('  - Status Text:', snResponse.statusText);
+    console.log('  - Response Headers:', Object.fromEntries(snResponse.headers.entries()));
+
     if (!snResponse.ok) {
+      // Get response text for more detailed error information
+      let errorResponseText = '';
+      try {
+        errorResponseText = await snResponse.text();
+        console.log('❌ ServiceNow Error Response Body:', errorResponseText);
+      } catch (textError) {
+        console.log('❌ Could not read error response body:', textError.message);
+      }
+
       if (snResponse.status === 401) {
         throw new Error('Authentication failed. Token may have expired or be invalid.');
       }
       if (snResponse.status === 403) {
         throw new Error('Access denied. Insufficient permissions to access ServiceNow table.');
       }
-      throw new Error(`ServiceNow API request failed with status: ${snResponse.status}`);
+      if (snResponse.status === 404) {
+        throw new Error(`ServiceNow resource not found (404). Check if the ServiceNow URL is correct: ${snRequestBody.snUrl}. Response: ${errorResponseText}`);
+      }
+      throw new Error(`ServiceNow API request failed with status: ${snResponse.status} (${snResponse.statusText}). Response: ${errorResponseText}`);
     }
 
     const snData = await snResponse.json();

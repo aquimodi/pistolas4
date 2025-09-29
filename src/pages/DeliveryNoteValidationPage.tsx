@@ -63,11 +63,12 @@ const DeliveryNoteValidationPage = () => {
     const snToVerify = serialNumberInput.trim();
     setSerialNumberInput(''); // Clear input immediately
 
-    if (!verificationPhoto) {
+    // Verificar que tenemos al menos el número de serie
+    if (!snToVerify) {
       addNotification({
         type: 'warning',
-        title: 'Foto Requerida',
-        message: 'Por favor, toma una foto del equipo antes de verificar.'
+        title: 'Número de Serie Requerido',
+        message: 'Por favor, introduce el número de serie del equipo.'
       });
       return;
     }
@@ -95,22 +96,26 @@ const DeliveryNoteValidationPage = () => {
     }
 
     try {
+      let photoPath = '';
+      
       // First upload the photo
-      const formData = new FormData();
-      formData.append('file', verificationPhoto);
+      if (verificationPhoto) {
+        const formData = new FormData();
+        formData.append('file', verificationPhoto);
 
-      const uploadResponse = await fetch('/api/upload/equipment', {
-        method: 'POST',
-        credentials: 'include',
-        body: formData,
-      });
+        const uploadResponse = await fetch('/api/upload/equipment', {
+          method: 'POST',
+          credentials: 'include',
+          body: formData,
+        });
 
-      if (!uploadResponse.ok) {
-        throw new Error('Failed to upload verification photo');
+        if (!uploadResponse.ok) {
+          throw new Error('Failed to upload verification photo');
+        }
+
+        const uploadResult = await uploadResponse.json();
+        photoPath = uploadResult.filePath;
       }
-
-      const uploadResult = await uploadResponse.json();
-      const photoPath = uploadResult.filePath;
 
       // Then verify with the uploaded photo path
       await equipmentAPI.verify(snToVerify, parseInt(deliveryNoteId!), photoPath);
@@ -118,7 +123,7 @@ const DeliveryNoteValidationPage = () => {
       addNotification({
         type: 'success',
         title: 'Equipo Verificado',
-        message: `El equipo con S/N "${snToVerify}" ha sido verificado correctamente.`
+        message: `El equipo con S/N "${snToVerify}" ha sido verificado correctamente${verificationPhoto ? ' con foto de documentación' : ''}.`
       });
       // Refresh data to show updated status
       refetch();
@@ -261,7 +266,7 @@ const DeliveryNoteValidationPage = () => {
           {/* Serial Number Input Section */}
           <div>
             <h3 className="text-lg font-medium text-gray-900 mb-4">
-              2. Ingresar Número de Serie
+              2. Ingresar Número de Serie (Requerido)
             </h3>
             <form onSubmit={handleSerialNumberSubmit} className="flex items-center space-x-4">
               <div className="relative flex-1">
@@ -277,13 +282,22 @@ const DeliveryNoteValidationPage = () => {
           </div>
           <button
             type="submit"
-                disabled={!verificationPhoto}
+            disabled={!serialNumberInput.trim()}
             className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 transition-colors"
           >
             <CheckCircle className="h-5 w-5 mr-2" />
             Verificar
           </button>
         </form>
+          </div>
+          
+          <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+            <h4 className="text-sm font-medium text-gray-900 mb-2">📋 Opciones de Verificación:</h4>
+            <ul className="text-sm text-gray-600 space-y-1">
+              <li>• <strong>Solo Número de Serie:</strong> Introduce el S/N y verifica sin foto</li>
+              <li>• <strong>Número de Serie + Foto:</strong> Documentación completa con evidencia visual</li>
+              <li>• <strong>Solo Foto:</strong> Próximamente disponible con OCR automático</li>
+            </ul>
           </div>
         </div>
       </div>

@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useNotification } from '../contexts/NotificationContext';
 import { useVerificationData } from '../hooks/useVerificationData';
+import { equipmentAPI } from '../services/api';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Breadcrumb from '../components/Breadcrumb';
 import VerificationProgressBar from '../components/VerificationProgressBar';

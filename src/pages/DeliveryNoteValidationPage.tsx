@@ -34,6 +34,7 @@ const DeliveryNoteValidationPage = () => {
   } = useVerificationData();
   const [serialNumberInput, setSerialNumberInput] = useState('');
   const [verificationPhoto, setVerificationPhoto] = useState<File | null>(null);
+  const [isVerifying, setIsVerifying] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Obtener el albarán actual y sus equipos
@@ -58,12 +59,11 @@ const DeliveryNoteValidationPage = () => {
 
   const handleSerialNumberSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!serialNumberInput.trim()) return;
+    if (!serialNumberInput.trim() || isVerifying) return;
 
     const snToVerify = serialNumberInput.trim();
-    setSerialNumberInput(''); // Clear input immediately
+    setSerialNumberInput('');
 
-    // Verificar que tenemos al menos el número de serie
     if (!snToVerify) {
       addNotification({
         type: 'warning',
@@ -95,11 +95,18 @@ const DeliveryNoteValidationPage = () => {
       return;
     }
 
+    setIsVerifying(true);
+
     try {
       let photoPath = '';
-      
-      // First upload the photo
+
       if (verificationPhoto) {
+        addNotification({
+          type: 'info',
+          title: 'Subiendo Foto',
+          message: 'Procesando foto de verificación...'
+        });
+
         const formData = new FormData();
         formData.append('file', verificationPhoto);
 
@@ -110,30 +117,32 @@ const DeliveryNoteValidationPage = () => {
         });
 
         if (!uploadResponse.ok) {
-          throw new Error('Failed to upload verification photo');
+          const errorData = await uploadResponse.json();
+          throw new Error(errorData.error || 'Error al subir la foto de verificación');
         }
 
         const uploadResult = await uploadResponse.json();
         photoPath = uploadResult.filePath;
       }
 
-      // Then verify with the uploaded photo path
       await equipmentAPI.verify(snToVerify, parseInt(deliveryNoteId!), photoPath);
-      
+
       addNotification({
         type: 'success',
         title: 'Equipo Verificado',
         message: `El equipo con S/N "${snToVerify}" ha sido verificado correctamente${verificationPhoto ? ' con foto de documentación' : ''}.`
       });
-      // Refresh data to show updated status
+
       refetch();
-      setVerificationPhoto(null); // Clear photo after successful verification
+      setVerificationPhoto(null);
     } catch (error) {
       addNotification({
         type: 'error',
         title: 'Error de Verificación',
         message: error instanceof Error ? error.message : 'Error al verificar el equipo.'
       });
+    } finally {
+      setIsVerifying(false);
     }
   };
 
@@ -282,11 +291,20 @@ const DeliveryNoteValidationPage = () => {
           </div>
           <button
             type="submit"
-            disabled={!serialNumberInput.trim()}
-            className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 transition-colors"
+            disabled={!serialNumberInput.trim() || isVerifying}
+            className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
           >
-            <CheckCircle className="h-5 w-5 mr-2" />
-            Verificar
+            {isVerifying ? (
+              <>
+                <RefreshCcw className="h-5 w-5 mr-2 animate-spin" />
+                Verificando...
+              </>
+            ) : (
+              <>
+                <CheckCircle className="h-5 w-5 mr-2" />
+                Verificar
+              </>
+            )}
           </button>
         </form>
           </div>

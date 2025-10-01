@@ -232,7 +232,7 @@ router.post('/verify', authenticateToken, async (req, res) => {
     // Update is_verified status
     const result = await executeQuery(`
       UPDATE equipment SET is_verified = 1, verification_photo_path = @param1, updated_at = GETDATE() OUTPUT INSERTED.* WHERE id = @param0`,
-      [equipment[0].id]
+      [equipment[0].id, verification_photo_path || null]
     );
 
     res.json({ message: 'Equipment verified successfully.', equipment: result[0] });

@@ -139,7 +139,7 @@ router.post('/delivery_notes', authenticateToken, upload.single('file'), async (
   try {
     console.log('📁 Delivery note file upload request received');
     console.log('User:', req.user?.username || 'unknown');
-    
+
     if (!req.file) {
       console.log('❌ No file provided');
       return res.status(400).json({ error: 'No file provided' });
@@ -155,11 +155,11 @@ router.post('/delivery_notes', authenticateToken, upload.single('file'), async (
 
     // File is already saved to disk by multer
     const publicPath = `/uploads/delivery_notes/${req.file.filename}`;
-    
+
     console.log('✅ Delivery note file processed successfully');
     console.log('📍 Physical path:', req.file.path);
     console.log('🌐 Public URL:', publicPath);
-    
+
     // Log the upload for audit purposes
     console.log(`📊 AUDIT: User ${req.user?.username} uploaded delivery note file: ${req.file.originalname} -> ${publicPath}`);
 
@@ -173,9 +173,55 @@ router.post('/delivery_notes', authenticateToken, upload.single('file'), async (
 
   } catch (error) {
     console.error('💥 Error uploading delivery note file:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: error.message || 'Failed to upload file',
       uploadType: 'delivery_note'
+    });
+  }
+});
+
+// Upload endpoint for equipment verification photos
+router.post('/equipment', authenticateToken, upload.single('file'), async (req, res) => {
+  try {
+    console.log('📁 Equipment verification photo upload request received');
+    console.log('User:', req.user?.username || 'unknown');
+
+    if (!req.file) {
+      console.log('❌ No file provided');
+      return res.status(400).json({ error: 'No file provided' });
+    }
+
+    console.log('📋 Equipment photo details:', {
+      originalName: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size,
+      savedAs: req.file.filename,
+      physicalPath: req.file.path
+    });
+
+    // File is already saved to disk by multer
+    const publicPath = `/uploads/equipment/${req.file.filename}`;
+
+    console.log('✅ Equipment photo processed successfully');
+    console.log('📍 Physical path:', req.file.path);
+    console.log('🌐 Public URL:', publicPath);
+
+    // Log the upload for audit purposes
+    console.log(`📊 AUDIT: User ${req.user?.username} uploaded equipment verification photo: ${req.file.originalname} -> ${publicPath}`);
+
+    res.json({
+      success: true,
+      filePath: publicPath,
+      originalName: req.file.originalname,
+      size: req.file.size,
+      uploadType: 'equipment'
+    });
+
+  } catch (error) {
+    console.error('💥 Error uploading equipment photo:', error);
+    res.status(500).json({
+      error: error.message || 'Failed to upload file',
+      uploadType: 'equipment'
     });
   }
 });

@@ -1,4 +1,3 @@
-#ESTÁS FUNCIONANDO?
 # Datacenter Equipment Management System
 
 A comprehensive, enterprise-grade web application for managing IT equipment reception and tracking in datacenter environments.

@@ -56,7 +56,17 @@ router.post('/', authenticateToken, authorizeRole(['admin', 'manager']), async (
 
     const result = await executeQuery(
       'INSERT INTO projects (ritm_code, project_name, client, datacenter, delivery_date, teams_folder_url, excel_file_path, status, created_by, created_at) OUTPUT INSERTED.* VALUES (@param0, @param1, @param2, @param3, @param4, @param5, @param6, @param7, @param8, GETDATE())',
-      [ritm_code, project_name, client, datacenter, delivery_date, teams_folder_url, excel_file_path, status, req.user?.id || 1]
+      [
+        ritm_code,
+        project_name,
+        client,
+        datacenter,
+        delivery_date || null,
+        teams_folder_url || null,
+        excel_file_path || null,
+        status,
+        req.user?.id || 1
+      ]
     );
 
     logger.info(`Project created: ${project_name} by ${req.user?.username || 'unknown'}`);
@@ -84,7 +94,17 @@ router.put('/:id', authenticateToken, authorizeRole(['admin', 'manager']), async
 
     const result = await executeQuery(
       'UPDATE projects SET ritm_code = @param1, project_name = @param2, client = @param3, datacenter = @param4, delivery_date = @param5, teams_folder_url = @param6, excel_file_path = @param7, status = @param8, updated_at = GETDATE() OUTPUT INSERTED.* WHERE id = @param0',
-      [id, ritm_code, project_name, client, datacenter, delivery_date, teams_folder_url, excel_file_path, status]
+      [
+        id,
+        ritm_code,
+        project_name,
+        client,
+        datacenter,
+        delivery_date || null,
+        teams_folder_url || null,
+        excel_file_path || null,
+        status
+      ]
     );
 
     if (result.length === 0) {

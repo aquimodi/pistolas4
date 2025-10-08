@@ -105,11 +105,11 @@ router.post('/', authenticateToken, async (req, res) => {
       order_id,
       delivery_code,
       estimated_equipment_count,
-      delivery_date,
-      carrier,
-      tracking_number,
-      attached_document_path,
-      notes || '',
+      delivery_date || null,
+      carrier || null,
+      tracking_number || null,
+      attached_document_path || null,
+      notes || null,
       req.user?.id || 1
     ]);
     
@@ -155,11 +155,11 @@ router.put('/:id', authenticateToken, async (req, res) => {
       order_id,
       delivery_code,
       estimated_equipment_count,
-      delivery_date,
-      carrier,
-      tracking_number,
-      attached_document_path,
-      notes
+      delivery_date || null,
+      carrier || null,
+      tracking_number || null,
+      attached_document_path || null,
+      notes || null
     ]);
     
     if (result.length === 0) {

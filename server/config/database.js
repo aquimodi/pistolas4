@@ -46,16 +46,33 @@ async function executeQuery(query, params = []) {
       console.warn('⚠️ Database not available, returning mock data');
       return getMockData(query);
     }
-    
+
     const request = dbPool.request();
-    
+
     // Add parameters if provided
     if (params && params.length > 0) {
       params.forEach((param, index) => {
-        request.input(`param${index}`, param);
+        // Determine SQL type based on parameter value
+        let sqlType = sql.NVarChar;
+
+        if (param === null || param === undefined) {
+          sqlType = sql.NVarChar;
+        } else if (typeof param === 'number') {
+          if (Number.isInteger(param)) {
+            sqlType = sql.Int;
+          } else {
+            sqlType = sql.Float;
+          }
+        } else if (typeof param === 'boolean') {
+          sqlType = sql.Bit;
+        } else if (param instanceof Date) {
+          sqlType = sql.DateTime;
+        }
+
+        request.input(`param${index}`, sqlType, param);
       });
     }
-    
+
     const result = await request.query(query);
     return result.recordset || [];
   } catch (err) {

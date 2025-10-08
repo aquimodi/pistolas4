@@ -152,6 +152,13 @@ app.use('/api/monitoring', monitoringRoutes);
 import uploadRoutes from './routes/upload.js';
 app.use('/api/upload', uploadRoutes);
 
+// Serve uploaded files as static resources
+import path from 'path';
+import { fileURLToPath } from 'url';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+
 // Error handling
 app.use(errorHandler);
 

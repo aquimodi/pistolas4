@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Server, Calendar, Users, FileText } from 'lucide-react';
+import { Plus, Server, Calendar, Users, FileText, File } from 'lucide-react';
 import { useNotification } from '../contexts/NotificationContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useVerificationData } from '../hooks/useVerificationData';
@@ -8,6 +8,7 @@ import Breadcrumb from '../components/Breadcrumb';
 import ProjectModal from '../components/ProjectModal';
 import VerificationProgressBar from '../components/VerificationProgressBar';
 import LoadingSpinner from '../components/LoadingSpinner';
+import FileViewer from '../components/FileViewer';
 
 const ProjectsPage = () => {
   const { user } = useAuth();
@@ -150,7 +151,7 @@ const ProjectsPage = () => {
                   Creado {new Date(project.created_at).toLocaleDateString()}
                 </div>
                 {project.teams_folder_url && (
-                  <a 
+                  <a
                     href={project.teams_folder_url}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -160,6 +161,15 @@ const ProjectsPage = () => {
                   </a>
                 )}
               </div>
+
+              {project.excel_file_path && (
+                <div className="mb-4">
+                  <FileViewer
+                    filePath={project.excel_file_path}
+                    showRemove={false}
+                  />
+                </div>
+              )}
 
               <div className="flex space-x-2">
                 <Link

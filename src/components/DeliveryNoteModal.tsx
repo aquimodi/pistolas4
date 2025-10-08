@@ -4,6 +4,7 @@ import { deliveryNotesAPI } from '../services/api';
 import { useNotification } from '../contexts/NotificationContext';
 import LoadingSpinner from './LoadingSpinner';
 import FileUpload from './FileUpload';
+import FileViewer from './FileViewer';
 
 interface DeliveryNoteModalProps {
   deliveryNote: any;
@@ -213,14 +214,36 @@ const DeliveryNoteModal: React.FC<DeliveryNoteModalProps> = ({
           </div>
 
           <div>
-            <FileUpload
-              uploadType="delivery_notes"
-              onFileUploaded={handleFileUploaded}
-              currentFile={formData.attached_document_path}
-              accept=".pdf,.docx,.doc,.xlsx,.xls"
-              maxSize={10}
-              label="Documento del Albarán"
-            />
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Documento del Albarán
+            </label>
+
+            {formData.attached_document_path ? (
+              <div className="space-y-2">
+                <FileViewer
+                  filePath={formData.attached_document_path}
+                  showRemove={true}
+                  onRemove={() => setFormData(prev => ({ ...prev, attached_document_path: '' }))}
+                />
+                <FileUpload
+                  uploadType="delivery_notes"
+                  onFileUploaded={handleFileUploaded}
+                  currentFile=""
+                  accept=".pdf,.docx,.doc,.xlsx,.xls"
+                  maxSize={10}
+                  label="Cambiar archivo"
+                />
+              </div>
+            ) : (
+              <FileUpload
+                uploadType="delivery_notes"
+                onFileUploaded={handleFileUploaded}
+                currentFile=""
+                accept=".pdf,.docx,.doc,.xlsx,.xls"
+                maxSize={10}
+                label=""
+              />
+            )}
           </div>
 
           <div>

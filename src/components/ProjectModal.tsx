@@ -4,6 +4,7 @@ import { projectsAPI } from '../services/api';
 import { useNotification } from '../contexts/NotificationContext';
 import LoadingSpinner from './LoadingSpinner';
 import FileUpload from './FileUpload';
+import FileViewer from './FileViewer';
 
 interface ProjectModalProps {
   project: any;
@@ -334,14 +335,37 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, isOpen, onClose, o
           </div>
 
           <div>
-            <FileUpload
-              uploadType="projects"
-              onFileUploaded={handleFileUploaded}
-              currentFile={formData.excel_file_path}
-              accept=".xlsx,.xls,.csv"
-              maxSize={10}
-              label={`Archivo Excel del Proyecto${isFetchingServiceNow ? ' (Se completará automáticamente si existe)' : ''}`}
-            />
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              {`Archivo Excel del Proyecto${isFetchingServiceNow ? ' (Se completará automáticamente si existe)' : ''}`}
+            </label>
+
+            {formData.excel_file_path ? (
+              <div className="space-y-2">
+                <FileViewer
+                  filePath={formData.excel_file_path}
+                  showRemove={true}
+                  onRemove={() => setFormData(prev => ({ ...prev, excel_file_path: '' }))}
+                />
+                <FileUpload
+                  uploadType="projects"
+                  onFileUploaded={handleFileUploaded}
+                  currentFile=""
+                  accept=".xlsx,.xls,.csv"
+                  maxSize={10}
+                  label="Cambiar archivo"
+                />
+              </div>
+            ) : (
+              <FileUpload
+                uploadType="projects"
+                onFileUploaded={handleFileUploaded}
+                currentFile=""
+                accept=".xlsx,.xls,.csv"
+                maxSize={10}
+                label=""
+              />
+            )}
+
             {serviceNowFetched && !project && formData.excel_file_path && (
               <p className="mt-2 text-xs text-green-600 flex items-center">
                 <CheckCircle className="h-3 w-3 mr-1" />

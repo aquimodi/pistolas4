@@ -9,6 +9,7 @@ import Breadcrumb from '../components/Breadcrumb';
 import LoadingSpinner from '../components/LoadingSpinner';
 import VerificationProgressBar from '../components/VerificationProgressBar';
 import DeliveryNoteModal from '../components/DeliveryNoteModal';
+import FileViewer from '../components/FileViewer';
 
 const DeliveryNotesPage = () => {
   const { orderId } = useParams();
@@ -208,6 +209,16 @@ const DeliveryNotesPage = () => {
                             <p className="text-xs">Tracking: {note.tracking_number}</p>
                           )}
                         </div>
+
+                        {note.attached_document_path && (
+                          <div className="mt-3">
+                            <FileViewer
+                              filePath={note.attached_document_path}
+                              showRemove={false}
+                              className="text-xs"
+                            />
+                          </div>
+                        )}
 
                         <div className="flex justify-between items-center mt-3">
                           <div className="flex space-x-2">

@@ -46,14 +46,31 @@ class ApiService {
     return this.handleResponse(response);
   }
 
-  async post(endpoint: string, data: any) {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: 'POST',
-      headers: this.getHeaders(),
-      body: JSON.stringify(data),
-      credentials: 'include'
-    });
-    return this.handleResponse(response);
+  async post(endpoint: string, data: any, options?: { timeout?: number }) {
+    const controller = new AbortController();
+    const timeoutId = options?.timeout
+      ? setTimeout(() => controller.abort(), options.timeout)
+      : undefined;
+
+    try {
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify(data),
+        credentials: 'include',
+        signal: controller.signal
+      });
+
+      if (timeoutId) clearTimeout(timeoutId);
+      return this.handleResponse(response);
+    } catch (error) {
+      if (timeoutId) clearTimeout(timeoutId);
+
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error('Request timeout. Please try again.');
+      }
+      throw error;
+    }
   }
 
   async put(endpoint: string, data: any) {
@@ -93,7 +110,7 @@ export const projectsAPI = {
   create: (data: any) => apiService.post('/projects', data),
   update: (id: string, data: any) => apiService.put(`/projects/${id}`, data),
   delete: (id: string) => apiService.delete(`/projects/${id}`),
-  fetchFromServiceNow: (ritmCode: string) => apiService.post('/projects/fetch-from-servicenow', { ritm_code: ritmCode })
+  fetchFromServiceNow: (ritmCode: string) => apiService.post('/projects/fetch-from-servicenow', { ritm_code: ritmCode }, { timeout: 120000 })
 };
 
 export const ordersAPI = {

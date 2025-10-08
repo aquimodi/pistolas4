@@ -35,8 +35,25 @@ const storage = multer.diskStorage({
       return cb(new Error('project_name is required for file uploads'), null);
     }
 
+    // Validate project name length and content
+    const trimmedProjectName = projectName.trim();
+    if (trimmedProjectName.length < 3) {
+      console.error(`❌ project_name too short: "${projectName}" (length: ${trimmedProjectName.length})`);
+      return cb(new Error('project_name must be at least 3 characters long'), null);
+    }
+
+    if (trimmedProjectName.length > 100) {
+      console.error(`❌ project_name too long: "${projectName}" (length: ${trimmedProjectName.length})`);
+      return cb(new Error('project_name must be less than 100 characters'), null);
+    }
+
     // Sanitize project name for use in directory path
-    const sanitizedProjectName = sanitizeProjectName(projectName);
+    const sanitizedProjectName = sanitizeProjectName(trimmedProjectName);
+
+    if (!sanitizedProjectName || sanitizedProjectName === 'unknown_project') {
+      console.error(`❌ Invalid project_name after sanitization: "${projectName}" -> "${sanitizedProjectName}"`);
+      return cb(new Error('project_name contains invalid characters or is empty'), null);
+    }
 
     // All files go into /uploads/projects/[ProjectName]/
     const uploadDir = path.join('uploads', 'projects', sanitizedProjectName);
@@ -44,7 +61,7 @@ const storage = multer.diskStorage({
     // Ensure directory exists
     ensureDirectoryExists(uploadDir);
 
-    console.log(`📁 Upload destination: ${uploadDir}`);
+    console.log(`📁 Upload destination: ${uploadDir} (from project: "${projectName}")`);
     cb(null, uploadDir);
   },
   filename: function (req, file, cb) {
@@ -113,6 +130,8 @@ router.post('/projects', authenticateToken, upload.single('file'), async (req, r
     console.log('📁 Project file upload request received');
     console.log('User:', req.user?.username || 'unknown');
     console.log('Project Name:', req.body.project_name);
+    console.log('Project Name Length:', req.body.project_name?.length || 0);
+    console.log('Project Name Trimmed:', req.body.project_name?.trim() || '');
 
     if (!req.file) {
       console.log('❌ No file provided');
@@ -135,11 +154,12 @@ router.post('/projects', authenticateToken, upload.single('file'), async (req, r
     const publicPath = `/uploads/projects/${projectFolder}/${req.file.filename}`;
 
     console.log('✅ Project file processed successfully');
+    console.log('📂 Project Folder Created:', projectFolder);
     console.log('📍 Physical path:', req.file.path);
     console.log('🌐 Public URL:', publicPath);
 
     // Log the upload for audit purposes
-    console.log(`📊 AUDIT: User ${req.user?.username} uploaded project file to ${req.body.project_name}: ${req.file.originalname} -> ${publicPath}`);
+    console.log(`📊 AUDIT: User ${req.user?.username} uploaded project file to "${req.body.project_name}" (folder: ${projectFolder}): ${req.file.originalname} -> ${publicPath}`);
 
     res.json({
       success: true,
@@ -147,7 +167,8 @@ router.post('/projects', authenticateToken, upload.single('file'), async (req, r
       originalName: req.file.originalname,
       size: req.file.size,
       uploadType: 'project',
-      projectName: req.body.project_name
+      projectName: req.body.project_name,
+      projectFolder: projectFolder
     });
 
   } catch (error) {

@@ -339,7 +339,17 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, isOpen, onClose, o
               {`Archivo Excel del Proyecto${isFetchingServiceNow ? ' (Se completará automáticamente si existe)' : ''}`}
             </label>
 
-            {formData.excel_file_path ? (
+            {!formData.project_name || formData.project_name.trim().length < 3 ? (
+              <div className="border-2 border-dashed border-amber-300 bg-amber-50 rounded-lg p-6 text-center">
+                <AlertTriangle className="h-8 w-8 text-amber-500 mx-auto mb-2" />
+                <p className="text-sm font-medium text-amber-900">
+                  Ingresa el nombre del proyecto primero
+                </p>
+                <p className="text-xs text-amber-700 mt-1">
+                  El nombre del proyecto es necesario para organizar los archivos correctamente
+                </p>
+              </div>
+            ) : formData.excel_file_path ? (
               <div className="space-y-2">
                 <FileViewer
                   filePath={formData.excel_file_path}

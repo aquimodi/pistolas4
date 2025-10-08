@@ -54,9 +54,22 @@ async function executeQuery(query, params = []) {
       params.forEach((param, index) => {
         // Determine SQL type based on parameter value
         let sqlType = sql.NVarChar;
+        let processedParam = param;
 
+        // Log parameter details for debugging
+        console.log(`📝 Parameter ${index} (param${index}):`, {
+          type: typeof param,
+          isNull: param === null,
+          isUndefined: param === undefined,
+          isArray: Array.isArray(param),
+          isObject: param !== null && typeof param === 'object' && !Array.isArray(param) && !(param instanceof Date),
+          value: param
+        });
+
+        // Validate parameter type and convert if necessary
         if (param === null || param === undefined) {
           sqlType = sql.NVarChar;
+          processedParam = null;
         } else if (typeof param === 'number') {
           if (Number.isInteger(param)) {
             sqlType = sql.Int;
@@ -67,16 +80,41 @@ async function executeQuery(query, params = []) {
           sqlType = sql.Bit;
         } else if (param instanceof Date) {
           sqlType = sql.DateTime;
+        } else if (typeof param === 'string') {
+          sqlType = sql.NVarChar;
+        } else if (Array.isArray(param)) {
+          console.error(`❌ Parameter ${index} is an array - converting to JSON string`);
+          sqlType = sql.NVarChar;
+          processedParam = JSON.stringify(param);
+        } else if (typeof param === 'object') {
+          console.error(`❌ Parameter ${index} is an object - converting to JSON string`);
+          sqlType = sql.NVarChar;
+          processedParam = JSON.stringify(param);
         }
 
-        request.input(`param${index}`, sqlType, param);
+        try {
+          request.input(`param${index}`, sqlType, processedParam);
+          console.log(`✅ Parameter ${index} added successfully with type ${sqlType.name}`);
+        } catch (paramError) {
+          console.error(`❌ Failed to add parameter ${index}:`, {
+            error: paramError.message,
+            paramType: typeof param,
+            paramValue: param,
+            sqlType: sqlType.name
+          });
+          throw new Error(`Parameter validation failed for param${index}: ${paramError.message}. Value type: ${typeof param}, Value: ${JSON.stringify(param)}`);
+        }
       });
     }
 
+    console.log(`🔍 Executing query with ${params.length} parameters`);
     const result = await request.query(query);
+    console.log(`✅ Query executed successfully, returned ${result.recordset?.length || 0} rows`);
     return result.recordset || [];
   } catch (err) {
-    console.error('Database query error:', err.message);
+    console.error('❌ Database query error:', err.message);
+    console.error('📋 Query:', query.substring(0, 200));
+    console.error('📋 Parameters:', params);
     console.warn('⚠️ Returning mock data due to database error');
     return getMockData(query);
   }

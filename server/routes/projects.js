@@ -39,34 +39,78 @@ router.get('/:id', authenticateToken, async (req, res) => {
 // Create project
 router.post('/', authenticateToken, authorizeRole(['admin', 'manager']), async (req, res) => {
   try {
-    const { 
-      ritm_code, 
-      project_name, 
-      client, 
-      datacenter, 
-      delivery_date, 
-      teams_folder_url, 
-      excel_file_path, 
-      status = 'active' 
+    console.log('📋 Project creation request body:', JSON.stringify(req.body, null, 2));
+
+    const {
+      ritm_code,
+      project_name,
+      client,
+      datacenter,
+      delivery_date,
+      teams_folder_url,
+      excel_file_path,
+      status = 'active'
     } = req.body;
 
     if (!ritm_code || !project_name || !client || !datacenter) {
       return res.status(400).json({ error: 'RITM code, project name, client, and datacenter are required' });
     }
 
+    // Validate field types
+    const fieldValidation = [
+      { name: 'ritm_code', value: ritm_code, expectedType: 'string' },
+      { name: 'project_name', value: project_name, expectedType: 'string' },
+      { name: 'client', value: client, expectedType: 'string' },
+      { name: 'datacenter', value: datacenter, expectedType: 'string' },
+      { name: 'teams_folder_url', value: teams_folder_url, expectedType: 'string', optional: true },
+      { name: 'excel_file_path', value: excel_file_path, expectedType: 'string', optional: true },
+      { name: 'status', value: status, expectedType: 'string' }
+    ];
+
+    for (const field of fieldValidation) {
+      if (field.value !== null && field.value !== undefined) {
+        if (typeof field.value !== field.expectedType) {
+          console.error(`❌ Field validation failed for ${field.name}:`, {
+            expected: field.expectedType,
+            actual: typeof field.value,
+            value: field.value
+          });
+          return res.status(400).json({
+            error: `Invalid data type for field '${field.name}'. Expected ${field.expectedType}, got ${typeof field.value}`,
+            field: field.name,
+            expectedType: field.expectedType,
+            actualType: typeof field.value
+          });
+        }
+      } else if (!field.optional) {
+        console.error(`❌ Required field ${field.name} is null or undefined`);
+      }
+    }
+
+    console.log('✅ All field validations passed');
+
+    // Prepare parameters with explicit null handling
+    const params = [
+      ritm_code,
+      project_name,
+      client,
+      datacenter,
+      delivery_date || null,
+      teams_folder_url || null,
+      excel_file_path || null,
+      status,
+      req.user?.id || 1
+    ];
+
+    console.log('📊 Prepared parameters for INSERT:', params.map((p, i) => ({
+      index: i,
+      type: typeof p,
+      value: p
+    })));
+
     const result = await executeQuery(
       'INSERT INTO projects (ritm_code, project_name, client, datacenter, delivery_date, teams_folder_url, excel_file_path, status, created_by, created_at) OUTPUT INSERTED.* VALUES (@param0, @param1, @param2, @param3, @param4, @param5, @param6, @param7, @param8, GETDATE())',
-      [
-        ritm_code,
-        project_name,
-        client,
-        datacenter,
-        delivery_date || null,
-        teams_folder_url || null,
-        excel_file_path || null,
-        status,
-        req.user?.id || 1
-      ]
+      params
     );
 
     logger.info(`Project created: ${project_name} by ${req.user?.username || 'unknown'}`);

@@ -8,17 +8,19 @@ import FileUpload from './FileUpload';
 interface EquipmentModalProps {
   equipment: any;
   deliveryNoteId: string;
+  projectName: string; // Project name for file organization
   isOpen: boolean;
   onClose: () => void;
   onSave: () => void;
 }
 
-const EquipmentModal: React.FC<EquipmentModalProps> = ({ 
-  equipment, 
-  deliveryNoteId, 
-  isOpen, 
-  onClose, 
-  onSave 
+const EquipmentModal: React.FC<EquipmentModalProps> = ({
+  equipment,
+  deliveryNoteId,
+  projectName,
+  isOpen,
+  onClose,
+  onSave
 }) => {
   const { addNotification } = useNotification();
   const [formData, setFormData] = useState({
@@ -268,6 +270,7 @@ const EquipmentModal: React.FC<EquipmentModalProps> = ({
               onFileUploaded={(path) => setFormData(prev => ({ ...prev, verification_photo_path: path }))}
               currentFile={formData.verification_photo_path}
               accept="image/*"
+              projectName={projectName}
             />
           </div>
 

@@ -353,6 +353,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, isOpen, onClose, o
                   accept=".xlsx,.xls,.csv"
                   maxSize={10}
                   label="Cambiar archivo"
+                  projectName={formData.project_name}
                 />
               </div>
             ) : (
@@ -363,6 +364,7 @@ const ProjectModal: React.FC<ProjectModalProps> = ({ project, isOpen, onClose, o
                 accept=".xlsx,.xls,.csv"
                 maxSize={10}
                 label=""
+                projectName={formData.project_name}
               />
             )}
 

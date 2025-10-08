@@ -9,17 +9,19 @@ import FileViewer from './FileViewer';
 interface DeliveryNoteModalProps {
   deliveryNote: any;
   orderId: string;
+  projectName: string; // Project name for file organization
   isOpen: boolean;
   onClose: () => void;
   onSave: () => void;
 }
 
-const DeliveryNoteModal: React.FC<DeliveryNoteModalProps> = ({ 
-  deliveryNote, 
-  orderId, 
-  isOpen, 
-  onClose, 
-  onSave 
+const DeliveryNoteModal: React.FC<DeliveryNoteModalProps> = ({
+  deliveryNote,
+  orderId,
+  projectName,
+  isOpen,
+  onClose,
+  onSave
 }) => {
   const { addNotification } = useNotification();
   const [formData, setFormData] = useState({
@@ -232,6 +234,7 @@ const DeliveryNoteModal: React.FC<DeliveryNoteModalProps> = ({
                   accept=".pdf,.docx,.doc,.xlsx,.xls"
                   maxSize={10}
                   label="Cambiar archivo"
+                  projectName={projectName}
                 />
               </div>
             ) : (
@@ -242,6 +245,7 @@ const DeliveryNoteModal: React.FC<DeliveryNoteModalProps> = ({
                 accept=".pdf,.docx,.doc,.xlsx,.xls"
                 maxSize={10}
                 label=""
+                projectName={projectName}
               />
             )}
           </div>

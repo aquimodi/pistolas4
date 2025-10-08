@@ -7,9 +7,10 @@ interface FileUploadProps {
   currentFile?: string;
   accept?: string;
   maxSize?: number; // in MB
-  uploadType: 'projects' | 'delivery_notes';
+  uploadType: 'projects' | 'delivery_notes' | 'equipment';
   label?: string;
   className?: string;
+  projectName: string; // REQUIRED: Project name for organizing files
 }
 
 const FileUpload: React.FC<FileUploadProps> = ({
@@ -19,7 +20,8 @@ const FileUpload: React.FC<FileUploadProps> = ({
   maxSize = 10,
   uploadType,
   label = 'Upload File',
-  className = ''
+  className = '',
+  projectName
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -52,6 +54,7 @@ const FileUpload: React.FC<FileUploadProps> = ({
     try {
       const formData = new FormData();
       formData.append('file', file);
+      formData.append('project_name', projectName); // Add project name to form data
 
       const response = await fetch(`/api/upload/${uploadType}`, {
         method: 'POST',

@@ -14,35 +14,54 @@ const ensureDirectoryExists = (dirPath) => {
   }
 };
 
+// Helper function to sanitize project name for directory use
+const sanitizeProjectName = (projectName) => {
+  if (!projectName) return 'unknown_project';
+  // Replace special characters with underscores, keep spaces as underscores
+  return projectName
+    .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_') // Remove invalid filename characters
+    .replace(/\s+/g, '_') // Replace spaces with underscores
+    .substring(0, 100); // Limit length to 100 characters
+};
+
 // Configure multer for persistent file storage
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    // Determine destination based on endpoint
-    const uploadType = req.originalUrl.includes('/projects') ? 'projects' : 
-                       req.originalUrl.includes('/equipment') ? 'equipment' : 
-                       'delivery_notes';
-    const uploadDir = path.join('uploads', uploadType);
-    
+    // Get project name from request body or query
+    const projectName = req.body.project_name || req.query.project_name;
+
+    if (!projectName) {
+      console.error('❌ No project_name provided in upload request');
+      return cb(new Error('project_name is required for file uploads'), null);
+    }
+
+    // Sanitize project name for use in directory path
+    const sanitizedProjectName = sanitizeProjectName(projectName);
+
+    // All files go into /uploads/projects/[ProjectName]/
+    const uploadDir = path.join('uploads', 'projects', sanitizedProjectName);
+
     // Ensure directory exists
     ensureDirectoryExists(uploadDir);
-    
+
+    console.log(`📁 Upload destination: ${uploadDir}`);
     cb(null, uploadDir);
   },
   filename: function (req, file, cb) {
     // Generate unique filename with format: tipo_timestamp_random_nombre_sanitizado.ext
-    const uploadType = req.originalUrl.includes('/projects') ? 'project' : 
-                       req.originalUrl.includes('/equipment') ? 'equipment' : 
+    const uploadType = req.originalUrl.includes('/projects') ? 'project' :
+                       req.originalUrl.includes('/equipment') ? 'equipment' :
                        'delivery_note';
     const timestamp = Date.now();
     const random = Math.floor(Math.random() * 1000);
     const ext = path.extname(file.originalname);
     const nameWithoutExt = path.basename(file.originalname, ext);
-    
+
     // Sanitize filename
     const sanitizedName = nameWithoutExt.replace(/[^a-zA-Z0-9._-]/g, '_');
-    
+
     const uniqueFilename = `${uploadType}_${timestamp}_${random}_${sanitizedName}${ext}`;
-    
+
     console.log(`📝 Generated filename: ${uniqueFilename}`);
     cb(null, uniqueFilename);
   }
@@ -93,7 +112,8 @@ router.post('/projects', authenticateToken, upload.single('file'), async (req, r
   try {
     console.log('📁 Project file upload request received');
     console.log('User:', req.user?.username || 'unknown');
-    
+    console.log('Project Name:', req.body.project_name);
+
     if (!req.file) {
       console.log('❌ No file provided');
       return res.status(400).json({ error: 'No file provided' });
@@ -107,27 +127,32 @@ router.post('/projects', authenticateToken, upload.single('file'), async (req, r
       physicalPath: req.file.path
     });
 
-    // File is already saved to disk by multer
-    const publicPath = `/uploads/projects/${req.file.filename}`;
-    
+    // Extract sanitized project name from the path
+    const pathParts = req.file.path.split(path.sep);
+    const projectFolder = pathParts[pathParts.length - 2]; // Get parent directory name
+
+    // File is already saved to disk by multer in /uploads/projects/[ProjectName]/
+    const publicPath = `/uploads/projects/${projectFolder}/${req.file.filename}`;
+
     console.log('✅ Project file processed successfully');
     console.log('📍 Physical path:', req.file.path);
     console.log('🌐 Public URL:', publicPath);
-    
+
     // Log the upload for audit purposes
-    console.log(`📊 AUDIT: User ${req.user?.username} uploaded project file: ${req.file.originalname} -> ${publicPath}`);
+    console.log(`📊 AUDIT: User ${req.user?.username} uploaded project file to ${req.body.project_name}: ${req.file.originalname} -> ${publicPath}`);
 
     res.json({
       success: true,
       filePath: publicPath,
       originalName: req.file.originalname,
       size: req.file.size,
-      uploadType: 'project'
+      uploadType: 'project',
+      projectName: req.body.project_name
     });
 
   } catch (error) {
     console.error('💥 Error uploading project file:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: error.message || 'Failed to upload file',
       uploadType: 'project'
     });
@@ -139,6 +164,7 @@ router.post('/delivery_notes', authenticateToken, upload.single('file'), async (
   try {
     console.log('📁 Delivery note file upload request received');
     console.log('User:', req.user?.username || 'unknown');
+    console.log('Project Name:', req.body.project_name);
 
     if (!req.file) {
       console.log('❌ No file provided');
@@ -153,22 +179,27 @@ router.post('/delivery_notes', authenticateToken, upload.single('file'), async (
       physicalPath: req.file.path
     });
 
-    // File is already saved to disk by multer
-    const publicPath = `/uploads/delivery_notes/${req.file.filename}`;
+    // Extract sanitized project name from the path
+    const pathParts = req.file.path.split(path.sep);
+    const projectFolder = pathParts[pathParts.length - 2]; // Get parent directory name
+
+    // File is already saved to disk by multer in /uploads/projects/[ProjectName]/
+    const publicPath = `/uploads/projects/${projectFolder}/${req.file.filename}`;
 
     console.log('✅ Delivery note file processed successfully');
     console.log('📍 Physical path:', req.file.path);
     console.log('🌐 Public URL:', publicPath);
 
     // Log the upload for audit purposes
-    console.log(`📊 AUDIT: User ${req.user?.username} uploaded delivery note file: ${req.file.originalname} -> ${publicPath}`);
+    console.log(`📊 AUDIT: User ${req.user?.username} uploaded delivery note file to ${req.body.project_name}: ${req.file.originalname} -> ${publicPath}`);
 
     res.json({
       success: true,
       filePath: publicPath,
       originalName: req.file.originalname,
       size: req.file.size,
-      uploadType: 'delivery_note'
+      uploadType: 'delivery_note',
+      projectName: req.body.project_name
     });
 
   } catch (error) {
@@ -185,6 +216,7 @@ router.post('/equipment', authenticateToken, upload.single('file'), async (req, 
   try {
     console.log('📁 Equipment verification photo upload request received');
     console.log('User:', req.user?.username || 'unknown');
+    console.log('Project Name:', req.body.project_name);
 
     if (!req.file) {
       console.log('❌ No file provided');
@@ -199,22 +231,27 @@ router.post('/equipment', authenticateToken, upload.single('file'), async (req, 
       physicalPath: req.file.path
     });
 
-    // File is already saved to disk by multer
-    const publicPath = `/uploads/equipment/${req.file.filename}`;
+    // Extract sanitized project name from the path
+    const pathParts = req.file.path.split(path.sep);
+    const projectFolder = pathParts[pathParts.length - 2]; // Get parent directory name
+
+    // File is already saved to disk by multer in /uploads/projects/[ProjectName]/
+    const publicPath = `/uploads/projects/${projectFolder}/${req.file.filename}`;
 
     console.log('✅ Equipment photo processed successfully');
     console.log('📍 Physical path:', req.file.path);
     console.log('🌐 Public URL:', publicPath);
 
     // Log the upload for audit purposes
-    console.log(`📊 AUDIT: User ${req.user?.username} uploaded equipment verification photo: ${req.file.originalname} -> ${publicPath}`);
+    console.log(`📊 AUDIT: User ${req.user?.username} uploaded equipment photo to ${req.body.project_name}: ${req.file.originalname} -> ${publicPath}`);
 
     res.json({
       success: true,
       filePath: publicPath,
       originalName: req.file.originalname,
       size: req.file.size,
-      uploadType: 'equipment'
+      uploadType: 'equipment',
+      projectName: req.body.project_name
     });
 
   } catch (error) {

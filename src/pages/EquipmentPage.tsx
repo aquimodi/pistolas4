@@ -329,15 +329,20 @@ const EquipmentPage = () => {
       )}
 
       {/* Equipment Modal */}
-      {isModalOpen && (
-        <EquipmentModal
-          equipment={editingEquipment}
-          deliveryNoteId={deliveryNoteId || editingEquipment?.delivery_note_id || ''}
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-          onSave={handleEquipmentSaved}
-        />
-      )}
+      {isModalOpen && (() => {
+        const projectName = currentProject?.project_name || 'Unknown_Project';
+
+        return (
+          <EquipmentModal
+            equipment={editingEquipment}
+            deliveryNoteId={deliveryNoteId || editingEquipment?.delivery_note_id || ''}
+            projectName={projectName}
+            isOpen={isModalOpen}
+            onClose={() => setIsModalOpen(false)}
+            onSave={handleEquipmentSaved}
+          />
+        );
+      })()}
     </div>
   );
 };

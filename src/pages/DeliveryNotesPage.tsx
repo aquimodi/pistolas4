@@ -271,15 +271,22 @@ const DeliveryNotesPage = () => {
       )}
 
       {/* Delivery Note Modal */}
-      {isModalOpen && (
-        <DeliveryNoteModal
-          deliveryNote={editingDeliveryNote}
-          orderId={selectedOrder}
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-          onSave={handleDeliveryNoteSaved}
-        />
-      )}
+      {isModalOpen && (() => {
+        const order = orders.find(o => o.id === parseInt(selectedOrder));
+        const project = order ? projects.find(p => p.id === order.project_id) : null;
+        const projectName = project?.project_name || 'Unknown_Project';
+
+        return (
+          <DeliveryNoteModal
+            deliveryNote={editingDeliveryNote}
+            orderId={selectedOrder}
+            projectName={projectName}
+            isOpen={isModalOpen}
+            onClose={() => setIsModalOpen(false)}
+            onSave={handleDeliveryNoteSaved}
+          />
+        );
+      })()}
     </div>
   );
 };
